@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Fund Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #0b0f1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .bg-mesh {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(99,102,241,.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(52,211,153,.08) 0%, transparent 50%);
+    }
+
+    .container {
+      position: relative; z-index: 1;
+      max-width: 600px; margin: 0 auto; padding: 60px 20px;
+    }
+
+    .hero { text-align: center; margin-bottom: 40px; }
+
+    .hero-icon {
+      width: 64px; height: 64px; margin: 0 auto 20px;
+      background: linear-gradient(135deg, rgba(99,102,241,.2), rgba(167,139,250,.15));
+      border: 1px solid rgba(99,102,241,.2);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+
+    h1 {
+      font-size: 2rem; font-weight: 800; margin-bottom: 8px;
+      background: linear-gradient(135deg, #f1f5f9 30%, #818cf8 60%, #a78bfa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p { color: #94a3b8; font-size: 0.95rem; }
+
+    .class-grid { display: grid; gap: 12px; }
+
+    .class-card {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 16px;
+      padding: 20px 24px;
+      text-decoration: none; color: inherit;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .class-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .class-info { display: flex; flex-direction: column; gap: 2px; }
+    .class-name { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+    .class-slug { font-size: 0.8rem; color: #64748b; font-family: monospace; }
+
+    .class-arrow {
+      color: #6366f1; font-size: 1.4rem; font-weight: 700;
+      transition: transform 0.2s;
+    }
+    .class-card:hover .class-arrow { transform: translateX(4px); }
+
+    .spinner {
+      width: 40px; height: 40px; margin: 40px auto;
+      border: 4px solid #1e293b; border-top-color: #6366f1;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center; padding: 40px; color: #64748b;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      border-radius: 16px;
+    }
+
+    .footer {
+      text-align: center; margin-top: 48px;
+      font-size: 0.8rem; color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="container">
+
+    <div class="hero">
+      <div class="hero-icon">&#128202;</div>
+      <h1>Class Fund Tracker</h1>
+      <p>Select your class to view collection status.</p>
+    </div>
+
+    <div id="classList" class="class-grid">
+      <div class="spinner"></div>
+    </div>
+
+    <div class="footer">Class Fund Auditor &mdash; Track collections transparently</div>
+
+  </div>
+
+  <script>
+    fetch('/api/classes/public')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var classes = data.classes || [];
+        var el = document.getElementById('classList');
+        if (classes.length === 0) {
+          el.innerHTML = '<div class="empty">No classes available yet.</div>';
+          return;
+        }
+        el.innerHTML = classes.map(function(c) {
+          return '<a href="/class/' + escHtml(c.slug) + '" class="class-card">' +
+            '<div class="class-info">' +
+              '<span class="class-name">' + escHtml(c.name) + '</span>' +
+              '<span class="class-slug">/class/' + escHtml(c.slug) + '</span>' +
+            '</div>' +
+            '<span class="class-arrow">&#8250;</span>' +
+          '</a>';
+        }).join('');
+      })
+      .catch(function() {
+        document.getElementById('classList').innerHTML =
+          '<div class="empty">Failed to load classes. Please try again.</div>';
+      });
+
+    function escHtml(s) {
+      if (!s) return '';
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>

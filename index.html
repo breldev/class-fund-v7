@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Fund Auditor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="apple-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="theme-color" content="#6366f1">
+</head>
+<body>
+  <div class="bg-layers">
+    <div class="bg-mesh" aria-hidden="true"></div>
+    <div class="bg-aurora" aria-hidden="true"></div>
+    <div class="bg-blob" style="top:12%;left:8%;width:440px;height:440px;--d:18s" aria-hidden="true"></div>
+    <div class="bg-blob" style="top:65%;left:72%;width:320px;height:320px;--d:26s;--r:167;--g:139;--b:250" aria-hidden="true"></div>
+    <div class="bg-blob" style="top:72%;left:25%;width:520px;height:520px;--d:23s;--r:52;--g:211;--b:153" aria-hidden="true"></div>
+    <div class="bg-noise" aria-hidden="true"></div>
+  </div>
+  <div class="bg-spotlight" id="spotlight" aria-hidden="true"></div>
+  <div class="app">
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">Class Fund Auditor</div>
+
+      <div class="sidebar-profile">
+        <div class="sidebar-avatar">:3</div>
+        <div class="sidebar-user">
+          <span class="sidebar-name">Class Fund</span>
+          <span class="sidebar-role">Braile - Auditor</span>
+        </div>
+      </div>
+
+      <button class="nav-btn active" onclick="showPage('dashboard')" data-page="dashboard"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>Dashboard</button>
+      <button class="nav-btn" onclick="showPage('students')" data-page="students"><span class="nav-icon"><i data-lucide="users"></i></span>Students</button>
+      <button class="nav-btn" onclick="showPage('payments')" data-page="payments"><span class="nav-icon"><i data-lucide="credit-card"></i></span>Payments</button>
+      <button class="nav-btn" onclick="showPage('expenses')" data-page="expenses"><span class="nav-icon"><i data-lucide="shopping-cart"></i></span>Expenses</button>
+      <button class="nav-btn" onclick="showPage('reports')" data-page="reports"><span class="nav-icon"><i data-lucide="file-text"></i></span>Reports</button>
+      <button class="nav-btn" onclick="showPage('calendar')" data-page="calendar"><span class="nav-icon"><i data-lucide="calendar"></i></span>Calendar</button>
+      <button class="nav-btn" onclick="showPage('archive')" data-page="archive"><span class="nav-icon"><i data-lucide="archive"></i></span>Archive</button>
+      <button class="nav-btn" onclick="showPage('analytics')" data-page="analytics"><span class="nav-icon"><i data-lucide="bar-chart-3"></i></span>Analytics</button>
+      <button class="nav-btn" onclick="showPage('history')" data-page="history"><span class="nav-icon"><i data-lucide="clock"></i></span>History</button>
+
+      <div class="sidebar-bottom">
+        <button class="theme-toggle" onclick="toggleTheme()"><i data-lucide="moon"></i> <span>Light</span></button>
+        <div class="accent-picker-wrapper">
+          <span class="accent-dot active" style="background:linear-gradient(135deg,#6366f1,#818cf8)" onclick="setAccent('indigo')" data-accent="indigo"></span>
+          <span class="accent-dot" style="background:linear-gradient(135deg,#38bdf8,#22d3ee)" onclick="setAccent('blue')" data-accent="blue"></span>
+          <span class="accent-dot" style="background:linear-gradient(135deg,#34d399,#10b981)" onclick="setAccent('green')" data-accent="green"></span>
+          <span class="accent-dot" style="background:linear-gradient(135deg,#fbbf24,#f59e0b)" onclick="setAccent('amber')" data-accent="amber"></span>
+          <span class="accent-dot" style="background:linear-gradient(135deg,#fb7185,#f43f5e)" onclick="setAccent('rose')" data-accent="rose"></span>
+        </div>
+        <button class="ghost-btn" onclick="openCustomizeModal()" style="justify-content:center;gap:6px;font-size:12px"><i data-lucide="sliders-horizontal" style="width:14px;height:14px"></i> Customize</button>
+        <button id="installBtn" class="ghost-btn" style="justify-content:center;gap:6px;font-size:12px;display:none"><i data-lucide="download" style="width:14px;height:14px"></i> Install App</button>
+        <button class="login-btn" id="loginBtn" onclick="showLoginModal()" style="justify-content:center;gap:6px;font-size:12px"><i data-lucide="log-in" style="width:14px;height:14px"></i> Login</button>
+        <button class="login-btn" id="logoutBtn" onclick="handleLogout()" style="justify-content:center;gap:6px;font-size:12px;display:none"><i data-lucide="log-out" style="width:14px;height:14px"></i> Logout</button>
+      </div>
+    </aside>
+
+    <!-- ============ MAIN WRAPPER ============ -->
+    <div class="main-wrapper">
+      <!-- ============ TOPBAR ============ -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Toggle sidebar"><i data-lucide="panel-left-open"></i></button>
+          <div class="topbar-search">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" placeholder="Search pages..." oninput="filterPages(this.value)" id="globalSearch">
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="topbar-btn" onclick="showStudentCodeModal()" aria-label="Student View" title="Student View" style="font-size:11px;gap:4px"><i data-lucide="user" style="width:16px;height:16px"></i><span style="font-size:11px">Student</span></button>
+          <button class="topbar-btn login-btn" id="topbarLoginBtn" onclick="showLoginModal()" aria-label="Login" title="Login"><i data-lucide="log-in" style="width:16px;height:16px"></i></button>
+          <button class="topbar-btn login-btn" id="topbarLogoutBtn" onclick="handleLogout()" aria-label="Logout" title="Logout" style="display:none"><i data-lucide="log-out" style="width:16px;height:16px"></i></button>
+          <button class="topbar-btn" onclick="location.reload()" aria-label="Refresh" title="Refresh"><i data-lucide="refresh-cw"></i></button>
+        </div>
+      </header>
+
+      <!-- ============ MAIN CONTENT ============ -->
+      <main class="main">
+        <section id="page-dashboard" class="page active ui-animate">
+          <div id="dashSkeleton" class="dash-skeleton">
+            <div class="skeleton dash-skel-hero"></div>
+            <div class="skeleton dash-skel-row">
+              <div class="skeleton dash-skel-card"></div>
+              <div class="skeleton dash-skel-card"></div>
+              <div class="skeleton dash-skel-card"></div>
+              <div class="skeleton dash-skel-card"></div>
+            </div>
+          </div>
+          <div id="dashContent" style="display:none;">
+
+          <!-- Header -->
+          <div class="dash-header">
+            <div class="dash-header-left">
+              <h1>Dashboard</h1>
+              <p>Class fund performance at a glance <span id="lastSaved" class="dash-last-saved"></span></p>
+            </div>
+            <div class="dash-header-right">
+              <span class="dash-badge">Week <span id="dashWeekDisplay"></span></span>
+            </div>
+          </div>
+
+          <!-- Hero Metrics Row -->
+          <div class="dash-metrics">
+            <div class="dash-metric dash-metric-primary">
+              <div class="dash-metric-icon"><i data-lucide="wallet"></i></div>
+              <div class="dash-metric-body">
+                <span class="dash-metric-label">Current Balance</span>
+                <span class="dash-metric-value" id="netBalance">PHP 0</span>
+              </div>
+            </div>
+            <div class="dash-metric">
+              <div class="dash-metric-icon dash-icon-collected"><i data-lucide="trending-up"></i></div>
+              <div class="dash-metric-body">
+                <span class="dash-metric-label">Collected</span>
+                <span class="dash-metric-value dash-value-collected" id="collected">PHP 0</span>
+              </div>
+            </div>
+            <div class="dash-metric">
+              <div class="dash-metric-icon dash-icon-expected"><i data-lucide="target"></i></div>
+              <div class="dash-metric-body">
+                <span class="dash-metric-label">Expected</span>
+                <span class="dash-metric-value" id="expected">PHP 0</span>
+              </div>
+            </div>
+            <div class="dash-metric">
+              <div class="dash-metric-icon dash-icon-progress"><i data-lucide="pie-chart"></i></div>
+              <div class="dash-metric-body">
+                <span class="dash-metric-label">Progress</span>
+                <span class="dash-metric-value" id="dashProgressPct">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="dash-progress-section">
+            <div class="dash-progress-header">
+              <span>Total Fund Progress</span>
+              <span id="dashProgressLabel">PHP 0 / PHP 0</span>
+            </div>
+            <div class="progress-bar dash-progress-bar">
+              <div id="progressFill"></div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="dash-charts">
+            <div class="dash-chart-card">
+              <div class="dash-chart-header">
+                <span>Collection Trend</span>
+                <span class="dash-chart-badge">Monthly</span>
+              </div>
+              <canvas id="sparkline" width="400" height="120"></canvas>
+            </div>
+            <div class="dash-chart-card">
+              <div class="dash-chart-header">
+                <span>Expense Trend</span>
+                <span class="dash-chart-badge">Monthly</span>
+              </div>
+              <canvas id="expenseChart" width="400" height="120"></canvas>
+            </div>
+          </div>
+
+          <!-- Widget Grid -->
+          <div class="dash-widgets">
+            <!-- Finance Overview -->
+            <div class="dash-widget dash-widget-finance">
+              <div class="dash-widget-head">
+                <h3>Finance Overview</h3>
+              </div>
+              <div class="dash-widget-body">
+                <div class="dash-finance-row">
+                  <span class="dash-finance-label">Remaining</span>
+                  <span class="dash-finance-value" id="remaining">PHP 0</span>
+                </div>
+                <div class="dash-finance-row">
+                  <span class="dash-finance-label">Event Fund Available</span>
+                  <span class="dash-finance-value dash-fv-event" id="eventAvailable">PHP 0</span>
+                </div>
+                <div class="dash-finance-row">
+                  <span class="dash-finance-label">Event Allocated</span>
+                  <span class="dash-finance-value dash-fv-sub" id="eventAllocated">PHP 0</span>
+                </div>
+                <div class="dash-finance-row">
+                  <span class="dash-finance-label">Reserve Available</span>
+                  <span class="dash-finance-value dash-fv-reserve" id="reserveAvailable">PHP 0</span>
+                </div>
+                <div class="dash-finance-row">
+                  <span class="dash-finance-label">Reserve Allocated</span>
+                  <span class="dash-finance-value dash-fv-sub" id="reserveAllocated">PHP 0</span>
+                </div>
+                <div class="dash-finance-row dash-finance-total">
+                  <span class="dash-finance-label">Total Expenses</span>
+                  <span class="dash-finance-value dash-fv-expense" id="expenseTotal">PHP 0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Class Status -->
+            <div class="dash-widget dash-widget-status">
+              <div class="dash-widget-head">
+                <h3>Class Status</h3>
+              </div>
+              <div class="dash-widget-body">
+                <div class="dash-status-row">
+                  <div class="dash-status-stat">
+                    <span class="dash-status-num" id="studentCount">0</span>
+                    <span class="dash-status-label">Students</span>
+                  </div>
+                  <div class="dash-status-stat">
+                    <span class="dash-status-num dash-num-ok" id="updatedCount">0</span>
+                    <span class="dash-status-label">Updated</span>
+                  </div>
+                  <div class="dash-status-stat">
+                    <span class="dash-status-num dash-num-debt" id="advancedCount">0</span>
+                    <span class="dash-status-label">With Debt</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Insights -->
+            <div class="dash-widget dash-widget-insights">
+              <div class="dash-widget-head">
+                <h3>Quick Insights</h3>
+              </div>
+              <div class="dash-widget-body">
+                <div class="dash-insight">
+                  <span class="dash-insight-dot" style="background:var(--green)"></span>
+                  <span class="dash-insight-text">Weekly Fee: <strong>PHP 5</strong></span>
+                </div>
+                <div class="dash-insight">
+                  <span class="dash-insight-dot" style="background:var(--blue)"></span>
+                  <span class="dash-insight-text">Event Fund: <strong>70%</strong></span>
+                </div>
+                <div class="dash-insight">
+                  <span class="dash-insight-dot" style="background:var(--amber)"></span>
+                  <span class="dash-insight-text">Reserve Fund: <strong>30%</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          </div>
+        </section>
+
+        <section id="page-students" class="page ui-animate">
+          <div class="page-header ui-animate">
+            <h1>Students</h1>
+            <p>Dito po ang management ng student and payment records!</p>
+          </div>
+
+          <div class="student-stats">
+            <div class="stat-card"><span class="stat-label">Total</span><span class="stat-value" id="statTotal">0</span></div>
+            <div class="stat-card stat-updated"><span class="stat-label">Updated</span><span class="stat-value" id="statUpdated">0</span></div>
+            <div class="stat-card stat-debt"><span class="stat-label">With Debt</span><span class="stat-value" id="statDebt">0</span></div>
+            <div class="stat-card stat-advanced"><span class="stat-label">Advanced</span><span class="stat-value" id="statAdvanced">0</span></div>
+            <div class="stat-card stat-none"><span class="stat-label">No Payments</span><span class="stat-value" id="statNone">0</span></div>
+            <div class="stat-card"><span class="stat-label">Collected</span><span class="stat-value" id="statCollected">PHP 0</span></div>
+            <div class="stat-card"><span class="stat-label">Debt Owed</span><span class="stat-value" id="statDebtOwed">PHP 0</span></div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input id="studentSearch" placeholder="Search student..." oninput="debouncedRender()" style="flex:1;min-width:140px;">
+              <input id="studentName" placeholder="Enter name" style="flex:1;min-width:140px;">
+              <button onclick="addStudent()">Add Student</button>
+            </div>
+          </div>
+
+          <div class="card import-card">
+            <div class="import-header" onclick="toggleImport()">
+              <span>📷 Import from Picture</span>
+              <span class="import-toggle">▼</span>
+            </div>
+            <div class="import-body">
+              <div class="import-copy">
+                <p>Upload a clear photo or screenshot, review the detected names, then import only when it looks right. - Pang import lang to ng student list heh</p>
+              </div>
+              <div id="ocrSpinner" class="ocr-spinner" style="display:none;">
+                <div class="spinner"></div>
+                <span>Scanning image...</span>
+              </div>
+              <label class="file-picker" for="studentImageImport">Choose Image</label>
+              <input id="studentImageImport" type="file" accept="image/*" onchange="importStudentsFromImage(event)">
+              <div id="importStatus" class="import-status">Ready to scan a student list.</div>
+              <div id="importPreviewBox" class="import-preview-box">
+                <textarea id="importPreview" rows="8" placeholder="Scanned names will appear here, one per line. You can edit before importing."></textarea>
+                <div class="import-actions">
+                  <button onclick="confirmStudentImport()">Import Reviewed Names</button>
+                  <button class="ghost-btn" onclick="clearStudentImportPreview()">Clear Preview</button>
+                  <button class="ghost-btn" onclick="undoLastStudentImport()">Undo Last Import</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card import-card">
+            <div class="import-header" onclick="toggleCSVImport()">
+              <span>📄 Import from CSV / Excel</span>
+              <span class="import-toggle" id="csvToggle">▼</span>
+            </div>
+            <div id="csvImportBody" class="import-body" style="display:none;">
+              <div class="import-copy">
+                <p>Upload a CSV or Excel file with student names (one per row or in a column labeled "Name" / "Student").</p>
+              </div>
+              <label class="file-picker" for="csvFileImport">Choose File</label>
+              <input id="csvFileImport" type="file" accept=".csv,.xlsx,.xls,.txt" onchange="importStudentsFromCSV(event)">
+              <div id="csvImportStatus" class="import-status">Ready to import.</div>
+              <div id="csvImportPreviewBox" class="import-preview-box">
+                <textarea id="csvImportPreview" rows="8" placeholder="Extracted names will appear here. You can edit before importing."></textarea>
+                <div class="import-actions">
+                  <button onclick="confirmCSVImport()">Import Reviewed Names</button>
+                  <button class="ghost-btn" onclick="document.getElementById('csvImportPreview').value='';document.getElementById('csvImportStatus').innerText='Preview cleared.';">Clear Preview</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card table-card">
+            <div class="filter-bar">
+              <button class="filter-btn active" onclick="setFilter('all')">All</button>
+              <button class="filter-btn" onclick="setFilter('updated')">Updated</button>
+              <button class="filter-btn" onclick="setFilter('debt')">Debt</button>
+              <button class="filter-btn" onclick="setFilter('advanced')">Advanced</button>
+              <button class="filter-btn" onclick="setFilter('none')">No Payments</button>
+            </div>
+            <table>
+              <thead>
+                <tr class="sort-header">
+                  <th style="width:32px;"><label class="bulk-check-label"><input type="checkbox" class="bulk-check-input" onchange="if(this.checked)selectAllStudents();else clearSelection();" title="Select all"><span class="bulk-check-box"></span></label></th>
+                  <th style="width:36px;">#</th>
+                  <th onclick="setSort('name')">Name</th>
+                  <th onclick="setSort('paid')">Paid</th>
+                  <th onclick="setSort('weeks')">Weeks</th>
+                  <th>Progress</th>
+                  <th onclick="setSort('debt')">Debt</th>
+                  <th onclick="setSort('status')">Status</th>
+                  <th>History</th>
+                  <th>Action</th>
+                  <th>Code</th>
+                </tr>
+              </thead>
+              <tbody id="studentTable"></tbody>
+            </table>
+            <div class="batch-bar" id="batchBar" style="display:none;">
+              <span id="batchCount" class="muted-text" style="font-size:13px;">0 selected</span>
+              <button onclick="exportSelectedStudents()">📋 Copy Selected</button>
+              <button onclick="exportSelectedCSV()">📥 CSV Selected</button>
+              <button class="ghost-btn" onclick="clearSelection()">Clear</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-payments" class="page ui-animate">
+          <div class="page-header ui-animate">
+            <h1>Payments</h1>
+            <p>Dito po yung individual or manual add ng payments :> </p>
+          </div>
+
+          <div class="card week-bar">
+            <span id="weekOverrideLabel" class="week-label">Week <span id="currentWeekDisplay"></span></span>
+            <input id="manualWeekInput" type="number" placeholder="Week #" min="1" class="compact-input">
+            <button onclick="var w=$('manualWeekInput').value;if(w)setManualWeek(w)" class="compact-btn ghost-btn">Set Week</button>
+            <button onclick="clearManualWeek()" id="clearWeekBtn" class="compact-btn ghost-btn">Reset to Auto</button>
+          </div>
+
+          <div class="card">
+            <input id="paymentStudentSearch" placeholder="Search student..." oninput="debouncedPaymentSearch()">
+            <select id="studentSelect"></select>
+            <input id="paymentAmount" type="number" placeholder="Amount">
+            <button onclick="addPayment()">Add Payment</button>
+          </div>
+
+          <div class="card">
+            <h2 style="margin:0 0 10px; font-size:18px;">Selected Student Payments</h2>
+            <div id="paymentTable" aria-live="polite"></div>
+          </div>
+
+          <div class="card bulk-pay-card">
+            <div class="bulk-pay-header">
+              <h2>📋 Bulk Payments</h2>
+              <span id="bulkToggle" class="bulk-toggle" onclick="toggleBulkPay()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')toggleBulkPay()">▼</span>
+            </div>
+            <div id="bulkPaySection">
+              <div class="bulk-toolbar">
+                <input id="bulkDefaultAmount" type="number" value="5" class="compact-input">
+                <button onclick="bulkFillAll()">Set All to ₱5</button>
+                <span class="bulk-separator"></span>
+                <button onclick="bulkPayChecked()" class="btn-pay">✅ Pay Checked</button>
+                <button onclick="bulkPayAll()" class="btn-pay">💰 Pay All</button>
+                <button onclick="bulkClearAll()" class="ghost-btn">Clear</button>
+              </div>
+              <div id="bulkTableContainer">
+                <p class="muted-text">No students loaded yet.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <section id="page-expenses" class="page ui-animate">
+          <div class="page-header ui-animate">
+            <h1>Class Expenses</h1>
+            <p>Track money spent from the class fund, like supplies, printing, projects, and event needs.</p>
+          </div>
+
+          <div class="dashboard">
+            <div class="card">Total Expenses<span id="expensesPageTotal">PHP 0</span></div>
+            <div class="card">Available Balance<span id="expensesPageBalance">PHP 0</span></div>
+            <div class="card">Event Fund<span id="expensesPageEventAvail">PHP 0</span><small class="kpi-sub">Allocated: <span id="expensesPageEventAlloc">PHP 0</span> · Spent: <span id="expensesPageEventSpent">PHP 0</span></small></div>
+            <div class="card">Reserve Fund<span id="expensesPageReserveAvail">PHP 0</span><small class="kpi-sub">Allocated: <span id="expensesPageReserveAlloc">PHP 0</span> · Spent: <span id="expensesPageReserveSpent">PHP 0</span></small></div>
+          </div>
+
+          <div class="card expense-form">
+            <input id="expenseTitle" placeholder="Expense description">
+            <input id="expenseAmount" type="number" placeholder="Total amount">
+            <div id="fundSplit" class="fund-split" style="display:none;">
+              <input id="eventAmount" type="number" placeholder="From Event" class="split-input" oninput="updateSplitTotal()">
+              <input id="reserveAmount" type="number" placeholder="From Reserve" class="split-input" oninput="updateSplitTotal()">
+            </div>
+            <input id="expenseDate" type="date">
+            <select id="expenseFund" onchange="toggleFundSplit()">
+              <option value="event">🎉 Event Fund</option>
+              <option value="reserve">🏦 Reserve Fund</option>
+              <option value="both">Both</option>
+            </select>
+            <select id="expenseCategory">
+              <option value="">Category</option>
+              <option value="Supplies">Supplies</option>
+              <option value="Printing">Printing</option>
+              <option value="Food">Food</option>
+              <option value="Transport">Transport</option>
+              <option value="Project">Project</option>
+              <option value="Event">Event</option>
+              <option value="Misc">Misc</option>
+            </select>
+            <label class="file-picker receipt-picker" for="expenseReceipt">Receipt Image</label>
+            <input id="expenseReceipt" type="file" accept="image/*">
+            <button onclick="addExpense()">Add Expense</button>
+          </div>
+
+          <div class="card expense-filters" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <label style="font-size:13px;font-weight:700;">Filter by category:</label>
+            <select id="expenseFilterCategory" onchange="setExpenseCategoryFilter(this.value)" style="width:auto;flex:0 0 150px;">
+              <option value="all">All</option>
+              <option value="Supplies">Supplies</option>
+              <option value="Printing">Printing</option>
+              <option value="Food">Food</option>
+              <option value="Transport">Transport</option>
+              <option value="Project">Project</option>
+              <option value="Event">Event</option>
+              <option value="Misc">Misc</option>
+            </select>
+            <label style="font-size:13px;font-weight:700;">From:</label>
+            <input type="date" id="expenseDateFrom" onchange="setExpenseDateFilter()" style="flex:0 0 150px;">
+            <label style="font-size:13px;font-weight:700;">To:</label>
+            <input type="date" id="expenseDateTo" onchange="setExpenseDateFilter()" style="flex:0 0 150px;">
+            <button class="ghost-btn" onclick="toggleReceiptGallery()" style="margin-left:auto;">🖼 Receipt Gallery</button>
+          </div>
+
+          <div id="receiptGallery" style="display:none;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-bottom:16px;"></div>
+
+          <div class="card table-card">
+            <div id="categoryTotals" style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;margin-bottom:12px;"></div>
+            <canvas id="expenseChartPage" width="600" height="150" style="width:100%;height:auto;max-height:150px;margin-bottom:16px;display:block;"></canvas>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Fund</th>
+                  <th>Receipt</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="expenseTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="page-calendar" class="page ui-animate">
+          <div class="page-header ui-animate">
+            <h1>Collection Calendar</h1>
+            <p>Manage collection weeks and monthly schedule.</p>
+          </div>
+
+          <div class="card">
+            <h3>Collection Settings</h3>
+            <label for="startDate">First Collection Date</label>
+            <input type="date" id="startDate" onchange="saveSettings()">
+            <label for="weeklyFee" style="margin-top:10px;display:block">Weekly Fee (₱)</label>
+            <input type="number" id="weeklyFee" min="1" value="5" onchange="saveSettings()" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:6px">
+          </div>
+
+          <div class="card">
+            <h3>Current Collection Weeks</h3>
+            <div id="calendarWeeks">Loading schedule...</div>
+          </div>
+        </section>
+
+        <section id="page-archive" class="page ui-animate">
+          <div class="page-header ui-animate">
+            <h1>Monthly Archive</h1>
+            <p>Dito naman po makikita yung monthly collections natin </p>
+          </div>
+
+          <div id="archiveContainer"></div>
+        </section>
+
+        <section id="page-analytics" class="page ui-animate">
+          <div class="page-header ui-animate">
+            <h1>Monthly Analytics</h1>
+          </div>
+
+          <div class="dashboard">
+            <div class="card">Best Month<span id="bestMonth">-</span></div>
+            <div class="card">Highest Collection<span id="highestCollection">PHP 0</span></div>
+            <div class="card">Average Collection<span id="averageCollection">PHP 0</span></div>
+          </div>
+        </section>
+
+        <section id="page-history" class="page ui-animate">
+          <div class="page-header ui-animate">
+            <h1>Payment History</h1>
+            <p>View all payment records.- gagana lang po ito next month pag may previous data na tayo heh</p>
+          </div>
+
+
+          <div id="historyContainer"></div>
+        </section>
+
+        <section id="page-reports" class="page ui-animate">
+
+          <div class="page-header">
+            <h1>Reports</h1>
+            <p>Generate reports and export finance data.</p>
+          </div>
+
+          <div class="card">
+            <div class="report-actions">
+              <div class="report-copy-group">
+                <button onclick="copyReport()">Copy Report</button>
+                <button onclick="copyShortReport()">Copy Short Report</button>
+                <button onclick="copyGCReminder()">Copy GC Reminder</button>
+              </div>
+
+              <div class="report-export-group">
+                <button onclick="exportBackup()">Export Backup</button>
+                <button onclick="exportExcelBackupSafe()">Export Excel Backup</button>
+              </div>
+
+              <div class="report-import-group">
+                <label class="file-picker backup-picker" for="backupImport">Import Backup</label>
+                <input id="backupImport" type="file" accept=".json,.txt,application/json,text/plain,text/*" onchange="importBackup(event)">
+              </div>
+
+              <div class="report-sync-group">
+                <button onclick="pushToCloud()" id="pushToCloudBtn">☁️ Push Data to Cloud</button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+
+  <div id="studentModal" class="modal">
+    <div class="modal-content modal-student" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeModal()">✕</span>
+      <div id="studentInfo"></div>
+      <div id="modalPaymentArea"></div>
+    </div>
+  </div>
+
+  <div id="receiptModal" class="modal">
+    <div class="modal-content receipt-modal-content" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeReceiptModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeReceiptModal()">✕</span>
+      <img id="receiptPreviewImage" class="receipt-preview-image" alt="Receipt preview">
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeConfirmModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeConfirmModal()">✕</span>
+      <h3 style="margin:0 0 16px;">Confirm Action</h3>
+      <div id="confirmModalBody" style="margin-bottom:16px;line-height:1.6;"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="ghost-btn" onclick="closeConfirmModal()">Cancel</button>
+        <button id="confirmModalBtn" onclick="closeConfirmModal()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="customizeModal" class="modal">
+    <div class="modal-content" style="max-width:520px" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeCustomizeModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeCustomizeModal()">✕</span>
+      <div id="customizeBody"></div>
+    </div>
+  </div>
+
+  <div id="loginModal" class="modal">
+    <div class="modal-content" style="max-width:400px" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeLoginModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeLoginModal()">✕</span>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:800">Admin Login</h2>
+      <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Sign in to edit class fund data</p>
+      <input id="loginEmail" type="email" placeholder="Email">
+      <input id="loginPassword" type="password" placeholder="Password">
+      <div id="loginError" style="color:var(--rose);font-size:12px;display:none;margin-top:8px"></div>
+      <button onclick="handleLogin()" id="loginSubmitBtn" class="login-btn" style="margin-top:12px">Sign In</button>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-secondary)">
+        Not an admin? <a href="#" onclick="event.preventDefault();closeLoginModal();showRegisterModal()" style="color:var(--accent);text-decoration:none;font-weight:600">Register as Auditor</a>
+      </p>
+    </div>
+  </div>
+
+  <div id="registerModal" class="modal">
+    <div class="modal-content" style="max-width:400px" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeRegisterModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeRegisterModal()">✕</span>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:800">Register as Auditor</h2>
+      <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Request access to manage this class</p>
+      <input id="registerName" type="text" placeholder="Full Name">
+      <input id="registerEmail" type="email" placeholder="Email">
+      <input id="registerPassword" type="password" placeholder="Password (min 6 characters)">
+      <textarea id="registerMessage" placeholder="Message to admin (optional)" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:inherit;font-size:13px;min-height:60px;resize:vertical;margin-top:12px"></textarea>
+      <div id="registerError" style="color:var(--rose);font-size:12px;display:none;margin-top:8px"></div>
+      <div id="registerSuccess" style="color:var(--green);font-size:12px;display:none;margin-top:8px"></div>
+      <button onclick="handleRegister()" id="registerSubmitBtn" class="login-btn" style="margin-top:12px">Submit Registration</button>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-secondary)">
+        Already have an account? <a href="#" onclick="event.preventDefault();closeRegisterModal();showLoginModal()" style="color:var(--accent);text-decoration:none;font-weight:600">Sign In</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Student Code Entry Modal -->
+  <div id="studentCodeModal" class="modal">
+    <div class="modal-content" style="max-width:380px" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeStudentCodeModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeStudentCodeModal()">✕</span>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:800">Student View</h2>
+      <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">Enter your 5-character code to view your payment status</p>
+      <input id="studentCodeInput" type="text" placeholder="Enter code (e.g. ABC12)" maxlength="5" style="text-transform:uppercase;letter-spacing:4px;font-size:18px;text-align:center;font-weight:700" />
+      <div id="studentCodeError" style="color:var(--rose);font-size:12px;display:none;margin-top:8px"></div>
+      <button onclick="handleStudentCodeSubmit()" id="studentCodeSubmitBtn" class="login-btn" style="margin-top:12px">View My Status</button>
+    </div>
+  </div>
+
+  <!-- Student Read-Only View -->
+  <div id="studentViewModal" class="modal">
+    <div class="modal-content" style="max-width:480px" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeStudentViewModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeStudentViewModal()">✕</span>
+      <div id="studentViewContent"></div>
+    </div>
+  </div>
+
+  <div class="fab-container" id="fabContainer">
+    <div class="fab-backdrop" onclick="closeFabMenu()"></div>
+    <div class="fab-actions" id="fabActions"></div>
+    <button class="fab" onclick="toggleFabMenu()" title="Quick action" aria-label="Quick action">+</button>
+  </div>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="firebase-auth.js"></script>
+  <script src="data-provider-firebase.js"></script>
+  <script src="class-storage.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="data-provider-localstorage.js"></script>
+  <script src="xlsx-export.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // ---- Helper: side effects for new UI ----
+    var _themeToggleHtml = '<i data-lucide="moon"></i> <span>Light</span>';
+    var _themeToggleHtmlDay = '<i data-lucide="sun"></i> <span>Dark</span>';
+
+    var _origToggleTheme = window.toggleTheme;
+    window.toggleTheme = function() {
+      if (_origToggleTheme) _origToggleTheme();
+      var btn = document.querySelector('.theme-toggle');
+      if (btn) {
+        var isDay = document.documentElement.getAttribute('data-theme') === 'day';
+        btn.innerHTML = isDay ? _themeToggleHtmlDay : _themeToggleHtml;
+        lucide.createIcons();
+      }
+    };
+
+    // -- showPage wraps original to re-add .active on the right nav button --
+    var _origShowPage = window.showPage;
+    window.showPage = function(page) {
+      if (_origShowPage) _origShowPage(page);
+      document.querySelectorAll('.nav-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-page') === page);
+      });
+    };
+
+    window.setAccent = function(name) {
+      if (typeof _prefs !== 'undefined') {
+        _prefs.accent = name;
+        savePrefs();
+        document.documentElement.setAttribute('data-accent', name);
+        document.querySelectorAll('.accent-dot').forEach(function(d) {
+          d.classList.toggle('active', d.getAttribute('data-accent') === name);
+        });
+        var swatches = document.querySelectorAll('.cust-accent-swatch');
+        swatches.forEach(function(s) {
+          s.classList.toggle('active', s.getAttribute('data-accent') === name);
+        });
+      }
+    };
+
+    window.filterPages = function(query) {
+      query = query.toLowerCase().trim();
+      document.querySelectorAll('.nav-btn').forEach(function(btn) {
+        var text = btn.textContent.toLowerCase().trim();
+        btn.style.display = (!query || text.includes(query)) ? '' : 'none';
+      });
+    };
+
+    // -- Sync theme toggle icon with current state --
+    (function() {
+      var btn = document.querySelector('.theme-toggle');
+      if (btn) {
+        var isDay = document.documentElement.getAttribute('data-theme') === 'day';
+        btn.innerHTML = isDay ? _themeToggleHtmlDay : _themeToggleHtml;
+        lucide.createIcons();
+      }
+    })();
+
+    // ---- Mouse spotlight + card reactive lighting (desktop only) ----
+    (function() {
+      var spotlight = document.getElementById('spotlight');
+      var root = document.documentElement;
+      if (!spotlight) return;
+      var ticking = false;
+      document.addEventListener('mousemove', function(e) {
+        if (!ticking) {
+          window.requestAnimationFrame(function() {
+            var x = (e.clientX / window.innerWidth * 100).toFixed(1);
+            var y = (e.clientY / window.innerHeight * 100).toFixed(1);
+            var pctX = x + '%';
+            var pctY = y + '%';
+            spotlight.style.setProperty('--mx', pctX);
+            spotlight.style.setProperty('--my', pctY);
+            root.style.setProperty('--mx', pctX);
+            root.style.setProperty('--my', pctY);
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+    })();
+
+    // ---- Pause animations when page is hidden ----
+    (function() {
+      var hiddenKey = document.hidden !== void 0 ? 'hidden' :
+                       document.msHidden !== void 0 ? 'msHidden' : null;
+      var eventKey = hiddenKey === 'msHidden' ? 'msvisibilitychange' : 'visibilitychange';
+      if (hiddenKey !== null) {
+        document.addEventListener(eventKey, function() {
+          document.documentElement.classList.toggle('paused', document[hiddenKey]);
+        });
+      }
+    })();
+
+    // ---- Ripple effect on buttons (desktop only) ----
+    (function() {
+      if (matchMedia('(hover: none) and (pointer: coarse)').matches) return;
+      document.addEventListener('click', function(e) {
+        var btn = e.target.closest('button, .file-picker, .topbar-btn, .accent-dot, .theme-toggle');
+        if (!btn) return;
+        if (btn.closest('.hist-btn, .payment-modal-table button, .receipt-link')) return;
+        var rect = btn.getBoundingClientRect();
+        var size = Math.max(rect.width, rect.height) * 1.2;
+        var x = e.clientX - rect.left - size / 2;
+        var y = e.clientY - rect.top - size / 2;
+        var ripple = document.createElement('span');
+        ripple.className = 'ripple';
+        ripple.style.cssText =
+          'width:' + size + 'px;height:' + size + 'px;left:' + x + 'px;top:' + y + 'px;';
+        btn.appendChild(ripple);
+        ripple.addEventListener('animationend', function() { ripple.remove(); });
+      }, { passive: true });
+    })();
+
+    // ---- Card tilt on mouse move (desktop only) ----
+    (function() {
+      if (matchMedia('(hover: none) and (pointer: coarse)').matches) return;
+      var tiltCards = document.querySelectorAll('.card, .hero-card, .stat-card, .week-card');
+      tiltCards.forEach(function(card) {
+        card.addEventListener('mousemove', function(e) {
+          var rect = card.getBoundingClientRect();
+          var x = (e.clientX - rect.left) / rect.width;
+          var y = (e.clientY - rect.top) / rect.height;
+          var tiltX = (y - 0.5) * -6;
+          var tiltY = (x - 0.5) * 6;
+          card.style.setProperty('--tiltX', tiltX + 'deg');
+          card.style.setProperty('--tiltY', tiltY + 'deg');
+        }, { passive: true });
+        card.addEventListener('mouseleave', function() {
+          card.style.setProperty('--tiltX', '0deg');
+          card.style.setProperty('--tiltY', '0deg');
+        }, { passive: true });
+      });
+    })();
+
+    // ---- Scroll reveal ----
+    (function() {
+      if (!window.IntersectionObserver) return;
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+      var targets = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
+      targets.forEach(function(el) { observer.observe(el); });
+    })();
+
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(function(reg) {
+        console.log('SW registered:', reg.scope);
+
+        reg.addEventListener('updatefound', function() {
+          var newSW = reg.installing;
+          newSW.addEventListener('statechange', function() {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              if (confirm('A new version is available. Reload to update?')) {
+                newSW.postMessage('skipWaiting');
+                window.location.reload();
+              }
+            }
+          });
+        });
+      }).catch(function(err) {
+        console.warn('SW registration failed:', err);
+      });
+
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    }
+  </script>
+
+</body>
+</html>
