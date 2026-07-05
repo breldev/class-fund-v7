@@ -4,6 +4,7 @@ var PRECACHE = [
   "./index.html",
   "./landing.html",
   "./style.css",
+  "./navbar.css",
   "./app.js",
   "./firebase-config.js",
   "./firebase-auth.js",
