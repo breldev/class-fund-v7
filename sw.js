@@ -1,4 +1,4 @@
-var CACHE = "classfund-v7";
+var CACHE = "classfund-v8";
 
 var PRECACHE = [
   "./index.html",
@@ -16,8 +16,7 @@ var PRECACHE = [
   "./icon-192.png",
   "./icon-512.png",
   "./favicon.ico",
-  "./apple-icon.png",
-  "https://unpkg.com/lucide@latest"
+  "./apple-icon.png"
 ];
 
 function isIndexRequest(url) {

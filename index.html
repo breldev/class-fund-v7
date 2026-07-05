@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="navbar.css">
+  <link rel="stylesheet" href="navbar.css?v=2">
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -850,10 +850,8 @@
           var newSW = reg.installing;
           newSW.addEventListener('statechange', function() {
             if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              if (confirm('A new version is available. Reload to update?')) {
-                newSW.postMessage('skipWaiting');
-                window.location.reload();
-              }
+              newSW.postMessage('skipWaiting');
+              window.location.reload();
             }
           });
         });
