@@ -1,55 +1,26 @@
-var CACHE = "classfund-v8";
+var CACHE = "classfund-v9";
 
-var PRECACHE = [
-  "./index.html",
-  "./landing.html",
-  "./style.css",
-  "./navbar.css",
-  "./app.js",
-  "./firebase-config.js",
-  "./firebase-auth.js",
-  "./data-provider-firebase.js",
-  "./class-storage.js",
-  "./xlsx-export.js",
-  "./data-provider-localstorage.js",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./favicon.ico",
-  "./apple-icon.png"
-];
+// No precache — everything is fetched on demand from the network.
+// This prevents SW install failure from breaking the page.
 
-function isIndexRequest(url) {
-  var path = url.replace(/^https?:\/\/[^\/]+/, "");
-  return path === "/index.html" || path.endsWith("/index.html");
-}
-
-// Class routes should always be fetched from server (never cached)
 function isClassRoute(url) {
   var path = url.replace(/^https?:\/\/[^\/]+/, "");
   return /^\/class\/[^/]+/.test(path);
 }
 
-// API routes should always be fetched from server (never cached)
 function isApiRoute(url) {
   var path = url.replace(/^https?:\/\/[^\/]+/, "");
   return path.startsWith("/api/");
 }
 
-self.addEventListener("install", function (e) {
-  e.waitUntil(
-    caches.open(CACHE).then(function (cache) {
-      return cache.addAll(PRECACHE);
-    }).then(function () {
-      return self.skipWaiting();
-    })
-  );
-});
+function isStaticAsset(url) {
+  var path = url.replace(/^https?:\/\/[^\/]+/, "");
+  return /\.(css|js|json|png|ico|svg|jpg|jpeg|gif|woff|woff2|ttf|eot|webmanifest)$/.test(path);
+}
 
-self.addEventListener("message", function (e) {
-  if (e.data === "skipWaiting") {
-    self.skipWaiting();
-  }
+self.addEventListener("install", function (e) {
+  // Activate immediately — no precache needed
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", function (e) {
@@ -69,41 +40,44 @@ self.addEventListener("fetch", function (e) {
 
   var reqUrl = e.request.url;
 
-  // Class routes: always fetch from server (never cache)
+  // Class routes: always fetch from server (never cached)
   if (isClassRoute(reqUrl)) {
     e.respondWith(fetch(e.request));
     return;
   }
 
-  // API routes: always fetch from server (never cache)
+  // API routes: always fetch from server (never cached)
   if (isApiRoute(reqUrl)) {
     e.respondWith(fetch(e.request));
     return;
   }
 
-  if (isIndexRequest(reqUrl)) {
+  // Static assets: network-first, fall back to cache
+  if (isStaticAsset(reqUrl)) {
     e.respondWith(
-      caches.match("./index.html").then(function (cached) {
-        return cached || fetch(e.request).then(function (r) {
-          var copy = r.clone();
-          caches.open(CACHE).then(function (cache) { cache.put("./index.html", copy); });
-          return r;
-        });
-      })
-    );
-    return;
-  }
-
-  e.respondWith(
-    caches.match(e.request).then(function (cached) {
-      var fetched = fetch(e.request).then(function (response) {
+      fetch(e.request).then(function (response) {
         if (response && response.status === 200) {
           var copy = response.clone();
           caches.open(CACHE).then(function (cache) { cache.put(e.request, copy); });
         }
         return response;
-      }).catch(function () { return cached; });
-      return cached || fetched;
+      }).catch(function () {
+        return caches.match(e.request);
+      })
+    );
+    return;
+  }
+
+  // Everything else: network-first, fall back to cache
+  e.respondWith(
+    fetch(e.request).then(function (response) {
+      if (response && response.status === 200) {
+        var copy = response.clone();
+        caches.open(CACHE).then(function (cache) { cache.put(e.request, copy); });
+      }
+      return response;
+    }).catch(function () {
+      return caches.match(e.request);
     })
   );
 });
