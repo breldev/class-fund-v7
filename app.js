@@ -210,6 +210,14 @@ function changePageSize(sz){
 }
 
 // ================= SAVE =================
+function canEdit(){
+  if (document.body.classList.contains("viewer-mode")) return false;
+  if (window.classSettings && window.classSettings.locked && !_adminMode) {
+    showToast("Class is locked by admin", "error");
+    return false;
+  }
+  return true;
+}
 function _saveStorage(){
   if (document.body.classList.contains("viewer-mode")) return false;
   if (window.classSettings && window.classSettings.locked && !_adminMode) {
@@ -333,6 +341,7 @@ function clearManualWeek(){
 
 // ================= ADD STUDENT =================
 function addStudent(){
+  if (!canEdit()) return;
 
   const name = $("studentName")?.value?.trim();
   if(!name) return;
@@ -447,6 +456,7 @@ function clearStudentImportPreview(){
 }
 
 function addImportedStudents(names){
+  if (!canEdit()) return 0;
   const existing = new Set(
     students.map(s => (s.name || "").trim().toLowerCase())
   );
@@ -560,6 +570,7 @@ function confirmStudentImport(){
 }
 
 function undoLastStudentImport(){
+  if (!canEdit()) return;
   const status = $("importStatus");
 
   if(!lastImportedStudentIds.length){
@@ -694,6 +705,7 @@ async function importStudentsFromCSV(event){
 }
 
 function confirmCSVImport(){
+  if (!canEdit()) return;
   var preview = $("csvImportPreview");
   var status = $("csvImportStatus");
   if(!preview) return;
@@ -721,6 +733,7 @@ function confirmCSVImport(){
 
 // ================= ADD PAYMENT =================
 function addPayment(){
+  if (!canEdit()) return;
 
   const id = toNumber($("studentSelect")?.value);
   const amount = toNumber($("paymentAmount")?.value);
@@ -803,6 +816,7 @@ function updateSplitTotal(){
 }
 
 async function addExpense(){
+  if (!canEdit()) return;
   const title = $("expenseTitle")?.value?.trim();
   const fund = $("expenseFund")?.value || "event";
   let amount, eventAmount, reserveAmount;
@@ -878,6 +892,7 @@ async function addExpense(){
 }
 
 function deleteExpense(id){
+  if (!canEdit()) return;
   var idx = expenses.findIndex(function(e){ return e.id === id; });
   if(idx === -1) return;
   var backup = {...expenses[idx]};
@@ -893,6 +908,7 @@ function deleteExpense(id){
 }
 
 function editExpense(id){
+  if (!canEdit()) return;
   var e = expenses.find(function(x){ return x.id === id; });
   if(!e) return;
   var body =
@@ -1058,6 +1074,7 @@ function getTotal(s){
 
 // ================= DELETE =================
 function deleteStudent(id){
+  if (!canEdit()) return;
   var s = students.find(function(x){return x.id===id;});
   if(!s) return;
   showConfirmDialog("Delete <strong>" + s.name + "</strong> and all their payments?", function(){
@@ -1069,6 +1086,7 @@ function deleteStudent(id){
 }
 
 function deletePayment(id,i){
+  if (!canEdit()) return;
   const s = students.find(x=>x.id===id);
   if(!s || !s.payments[i]) return;
   const backup = {...s.payments[i]};
@@ -1086,6 +1104,7 @@ function deletePayment(id,i){
 
 // ================= EDIT PAYMENT =================
 function editPayment(studentId,index){
+  if (!canEdit()) return;
   var s = students.find(function(x){ return x.id===studentId; });
   if(!s || !s.payments[index]) return;
   var current = s.payments[index];
@@ -1641,6 +1660,7 @@ function bulkToggleAll(checked){
 }
 
 function bulkPayChecked(){
+  if (!canEdit()) return;
   var now = new Date();
   var date = now.toLocaleString();
   var month = now.toLocaleString("en-US", {month:"long", year:"numeric"});
@@ -1675,6 +1695,7 @@ function bulkPayChecked(){
 
 function bulkPayAll(){
   showConfirmDialog("Pay ALL students in the table?", function(){
+    if (!canEdit()) return;
     var now = new Date();
     var date = now.toLocaleString();
     var month = now.toLocaleString("en-US", {month:"long", year:"numeric"});
@@ -1704,7 +1725,7 @@ function bulkClearAll(){
 }
 
 function skipWeek(week){
-
+  if (!canEdit()) return;
   week = Number(week);
 
   if(!week || skippedWeeks.includes(week))
@@ -1724,7 +1745,7 @@ function isSkipped(week){
 }
 
 function unskipWeek(week){
-
+  if (!canEdit()) return;
   week = Number(week);
 
   skippedWeeks = skippedWeeks.filter(
@@ -2126,6 +2147,7 @@ function importBackup(event){
   var file = event.target.files?.[0];
   if(!file) return;
   showConfirmDialog("Import this backup? This will replace the current data saved in this browser.", function(){
+    if (!canEdit()) return;
     var reader = new FileReader();
     reader.onload = function(){
       try{
@@ -2651,6 +2673,7 @@ function viewStudent(id){
 }
 
 function saveStudentNotes(id){
+  if (!canEdit()) return;
   var s = students.find(function(x){ return x.id === id; });
   if(!s) return;
   var el = $("notes-" + id);
@@ -3384,6 +3407,7 @@ function getInitials(name){
   return (name||"").split(" ").map(function(w){ return w[0]; }).filter(Boolean).slice(0,2).join("").toUpperCase() || "?";
 }
 function editStudentName(id){
+  if (!canEdit()) return;
   var s = students.find(function(x){ return x.id === id; });
   if(!s) return;
   var newName = prompt("Edit student name:", s.name);
@@ -3479,9 +3503,11 @@ function exportSelectedCSV(){
 
 // ================= BULK PAYMENT =================
 function payAll(amount){
+  if (!canEdit()) return;
   amount = Number(amount);
   if(!amount || amount <= 0) return;
   showConfirmDialog('Pay all students <strong>₱' + amount + '</strong> each?', function(){
+    if (!canEdit()) return;
     var now = new Date();
     var date = now.toLocaleString();
     var month = now.toLocaleString("en-US",{month:"long",year:"numeric"});
@@ -3494,7 +3520,9 @@ function payAll(amount){
   });
 }
 function resetAllPayments(){
+  if (!canEdit()) return;
   showConfirmDialog("<strong>WARNING:</strong> Delete ALL payment records? This cannot be undone.", function(){
+    if (!canEdit()) return;
     students.forEach(function(student){ student.payments = []; });
     save();
     render();
@@ -3565,6 +3593,7 @@ function closeConfirmModal(){
 
 // ================= MODAL PAYMENT =================
 function addModalPayment(id){
+  if (!canEdit()) return;
   var input = $("modalPayAmount");
   var amount = toNumber(input?.value);
   if(!amount || amount <= 0) return;
