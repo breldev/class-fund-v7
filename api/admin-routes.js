@@ -387,7 +387,8 @@ router.get("/api/:slug/settings", verifyAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/:slug/settings — update class settings (admin only)
+// PUT /api/:slug/settings — update class settings (admin only), also writes merged
+// settings into classFund/{slug}.classSettings for client-side reading
 router.put("/api/:slug/settings", verifyAdmin, async (req, res) => {
   const db = getDb();
   if (!db) return res.status(500).json({ error: "Database not available" });
@@ -395,10 +396,10 @@ router.put("/api/:slug/settings", verifyAdmin, async (req, res) => {
   const { slug } = req.params;
 
   try {
-    const doc = await db.collection("_classes").doc(slug).get();
-    if (!doc.exists) return res.status(404).json({ error: "Class not found" });
+    const classDoc = await db.collection("_classes").doc(slug).get();
+    if (!classDoc.exists) return res.status(404).json({ error: "Class not found" });
 
-    const current = doc.data();
+    const current = classDoc.data();
     const existingSettings = current.settings || {};
 
     const updates = {};
@@ -408,17 +409,31 @@ router.put("/api/:slug/settings", verifyAdmin, async (req, res) => {
     if (req.body.forceWeeklyFee !== undefined) updates.forceWeeklyFee = Boolean(req.body.forceWeeklyFee);
     if (req.body.features !== undefined) updates.features = req.body.features;
 
-    await db
-      .collection("_classes")
-      .doc(slug)
-      .update({
-        settings: {
-          ...existingSettings,
-          ...updates,
-          updatedAt: new Date().toISOString(),
-          updatedBy: req.user.email,
-        },
-      });
+    const newSettings = {
+      ...existingSettings,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+      updatedBy: req.user.email,
+    };
+
+    // Update _classes metadata
+    await db.collection("_classes").doc(slug).update({ settings: newSettings });
+
+    // Merge with global defaults and write to classFund for client-side access
+    const globalDoc = await db.collection("_config").doc("globalSettings").get();
+    const globalDefaults = globalDoc.exists
+      ? globalDoc.data()
+      : { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], features: { pdfExport: false } };
+
+    const mergedSettings = {
+      weeklyFee: updates.weeklyFee != null ? updates.weeklyFee : (existingSettings.weeklyFee != null ? existingSettings.weeklyFee : globalDefaults.weeklyFee || 5),
+      categories: updates.categories || existingSettings.categories || globalDefaults.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
+      locked: updates.locked !== undefined ? updates.locked : (existingSettings.locked === true),
+      forceWeeklyFee: updates.forceWeeklyFee !== undefined ? updates.forceWeeklyFee : (existingSettings.forceWeeklyFee === true),
+      features: Object.assign({}, globalDefaults.features || {}, existingSettings.features || {}, updates.features || {}),
+    };
+
+    await db.collection("classFund").doc(slug).set({ classSettings: mergedSettings }, { merge: true });
 
     res.json({ success: true });
   } catch (err) {

@@ -54,11 +54,24 @@
     if (data.currentMonth) localStorage.setItem("currentMonth", data.currentMonth);
   }
 
-  // Read ALL data from Firestore → write to LocalStorage
+  // Read ALL data from Firestore → write to LocalStorage, also load settings
   function syncAllFromFirestore() {
     return getClassDoc().get().then(function (doc) {
       if (doc.exists) {
-        setAllDataToLocal(doc.data());
+        var data = doc.data();
+        setAllDataToLocal(data);
+        // Extract settings from the same document (stored by admin API)
+        if (data.classSettings) {
+          var s = data.classSettings;
+          classSettings = {
+            weeklyFee: s.weeklyFee != null ? s.weeklyFee : 5,
+            categories: s.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
+            locked: s.locked === true,
+            forceWeeklyFee: s.forceWeeklyFee === true,
+            features: s.features || { pdfExport: false },
+          };
+          window.classSettings = classSettings;
+        }
         return true;
       }
       return false;
@@ -93,43 +106,38 @@
   }
 
   // ================= CLASS SETTINGS =================
-  var classSettings = null;
+  var classSettings = window.classSettings || null;
 
-  function mergeSettings(globalSettings, classOverrides) {
-    var overrides = classOverrides || {};
-    var defaults = globalSettings || {};
-    return {
-      weeklyFee: overrides.weeklyFee != null ? overrides.weeklyFee : (defaults.weeklyFee || 5),
-      categories: overrides.categories || defaults.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
-      locked: overrides.locked === true,
-      forceWeeklyFee: overrides.forceWeeklyFee === true,
-      features: Object.assign({}, defaults.features || {}, overrides.features || {}),
-    };
+  function applyClassSettings(data) {
+    if (data && data.classSettings) {
+      var s = data.classSettings;
+      classSettings = {
+        weeklyFee: s.weeklyFee != null ? s.weeklyFee : 5,
+        categories: s.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
+        locked: s.locked === true,
+        forceWeeklyFee: s.forceWeeklyFee === true,
+        features: s.features || { pdfExport: false },
+      };
+    } else {
+      classSettings = { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], locked: false, forceWeeklyFee: false, features: { pdfExport: false } };
+    }
+    window.classSettings = classSettings;
   }
 
+  // Reload settings from Firestore (called after admin changes a class's settings)
   function loadSettings() {
     if (!CLASS_ID) {
-      classSettings = { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], locked: false, forceWeeklyFee: false, features: { pdfExport: false } };
-      window.classSettings = classSettings;
+      applyClassSettings(null);
       return Promise.resolve(classSettings);
     }
-
-    return Promise.all([db.collection("_config").doc("globalSettings").get(), db.collection("_classes").doc(CLASS_ID).get()])
-      .then(function (results) {
-        var globalDoc = results[0];
-        var classDoc = results[1];
-        var globalSettings = globalDoc.exists ? globalDoc.data() : {};
-        var classOverrides = classDoc.exists ? classDoc.data().settings || {} : {};
-        classSettings = mergeSettings(globalSettings, classOverrides);
-        window.classSettings = classSettings;
-        return classSettings;
-      })
-      .catch(function (err) {
-        console.warn("Settings load failed:", err);
-        classSettings = { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], locked: false, forceWeeklyFee: false, features: { pdfExport: false } };
-        window.classSettings = classSettings;
-        return classSettings;
-      });
+    return getClassDoc().get().then(function (snap) {
+      applyClassSettings(snap.exists ? snap.data() : null);
+      return classSettings;
+    }).catch(function (err) {
+      console.warn("Settings reload failed:", err);
+      applyClassSettings(null);
+      return classSettings;
+    });
   }
 
   function getSettings() {
@@ -141,15 +149,6 @@
     return settings && settings.features && settings.features[featureName] === true;
   }
 
-  // Load settings automatically after data sync
-  var _origSyncAllFromFirestore = syncAllFromFirestore;
-  syncAllFromFirestore = function () {
-    return _origSyncAllFromFirestore().then(function (result) {
-      if (CLASS_ID) return loadSettings().then(function () { return result; });
-      return result;
-    });
-  };
-
   window.firebaseData = {
     syncAllFromFirestore: syncAllFromFirestore,
     syncAllToFirestore: syncAllToFirestore,
@@ -157,5 +156,6 @@
     getClassId: function () { return CLASS_ID; },
     getSettings: getSettings,
     isFeatureEnabled: isFeatureEnabled,
+    loadSettings: loadSettings,
   };
 })();
