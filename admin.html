@@ -139,6 +139,22 @@
     }
     .spinner { width: 40px; height: 40px; border: 4px solid #1e293b; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,0.6);
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: #0f172a; border: 1px solid #334155; border-radius: 16px;
+      padding: 28px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;
+    }
+    .modal-box h2 { margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+    .toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #6366f1; cursor: pointer; }
+    .toggle-row { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -228,8 +244,72 @@
           <div class="empty">No pending registrations.</div>
         </div>
       </div>
+
+      <!-- Global Config -->
+      <div class="card">
+        <h2>Global Config</h2>
+        <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:16px;">Default settings applied to all new classes. Per-class overrides take precedence.</p>
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 120px;">
+            <label>Default Weekly Fee (₱)</label>
+            <input type="number" id="globalWeeklyFee" min="1" value="5" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Default Categories (comma-separated)</label>
+          <input type="text" id="globalCategories" value="Supplies, Printing, Food, Transport, Project, Event, Misc" />
+        </div>
+        <div class="form-group" style="margin-top:16px;">
+          <label style="margin-bottom:12px;">Feature Toggles</label>
+          <label class="toggle-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" id="globalFeaturePdfExport" style="width:18px;height:18px;accent-color:#6366f1;" />
+            <span style="font-size:0.9rem;color:#e2e8f0;">PDF Export</span>
+          </label>
+        </div>
+        <button class="btn btn-primary" onclick="saveGlobalConfig()">Save Global Config</button>
+      </div>
     </div>
 
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-box">
+      <h2>Class Settings: <span id="settingsSlug"></span></h2>
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 120px;">
+          <label>Weekly Fee Override</label>
+          <input type="number" id="settingsWeeklyFee" min="0" placeholder="0 = use global" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Categories Override</label>
+        <input type="text" id="settingsCategories" placeholder="Leave empty to use global" />
+        <span style="color:#64748b;font-size:0.75rem;">Comma-separated. Leave empty for global defaults.</span>
+      </div>
+      <div class="form-group" style="margin-top:16px;">
+        <label style="margin-bottom:12px;">Feature Overrides</label>
+        <label class="toggle-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <input type="checkbox" id="settingsFeaturePdfExport" />
+          <span style="font-size:0.9rem;color:#e2e8f0;">PDF Export</span>
+        </label>
+      </div>
+      <div style="border-top:1px solid #1e293b;padding-top:16px;margin-top:16px;">
+        <label style="margin-bottom:12px;display:block;color:#94a3b8;font-size:0.85rem;font-weight:600;">Admin Controls</label>
+        <label class="toggle-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <input type="checkbox" id="settingsLocked" />
+          <span style="font-size:0.9rem;color:#e2e8f0;">Lock class (prevents auditor edits)</span>
+        </label>
+        <label class="toggle-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <input type="checkbox" id="settingsForceWeeklyFee" />
+          <span style="font-size:0.9rem;color:#e2e8f0;">Force weekly fee (auditor can't change)</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeClassSettings()">Cancel</button>
+        <button class="btn btn-primary" id="saveSettingsBtn" onclick="saveClassSettings()">Save Settings</button>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -331,6 +411,7 @@
       }
       loadClasses();
       loadPending();
+      loadGlobalConfig();
     }
 
     // ===== API helper =====
@@ -366,6 +447,7 @@
               '<td><span class="date-text">' + formatDate(c.createdAt) + '</span></td>' +
               '<td class="actions">' +
                 '<a href="/class/' + escHtml(c.slug) + '" class="btn btn-ghost btn-sm" target="_blank">Open</a>' +
+                '<button class="btn btn-ghost btn-sm" onclick="openClassSettings(\'' + escHtml(c.slug) + '\')">Settings</button>' +
                 '<button class="btn btn-danger btn-sm" onclick="handleDeleteClass(\'' + escHtml(c.slug) + '\')">Delete</button>' +
               '</td>' +
             '</tr>';
@@ -473,6 +555,112 @@
             loadPending();
           }
         });
+    }
+
+    // ===== Class Settings Modal =====
+    var _currentSettingsSlug = null;
+
+    function openClassSettings(slug) {
+      _currentSettingsSlug = slug;
+      document.getElementById("settingsSlug").textContent = slug;
+      document.getElementById("settingsModal").classList.add("show");
+
+      // Load current settings from API
+      api("/api/" + slug + "/settings").then(function(data) {
+        if (data.error) {
+          showToast(data.error, "error");
+          return;
+        }
+        document.getElementById("settingsWeeklyFee").value = data.weeklyFee != null ? data.weeklyFee : "";
+        document.getElementById("settingsCategories").value = data.categories ? data.categories.join(", ") : "";
+        document.getElementById("settingsFeaturePdfExport").checked = data.features && data.features.pdfExport === true;
+        document.getElementById("settingsLocked").checked = data.locked === true;
+        document.getElementById("settingsForceWeeklyFee").checked = data.forceWeeklyFee === true;
+      });
+    }
+
+    function closeClassSettings() {
+      document.getElementById("settingsModal").classList.remove("show");
+      _currentSettingsSlug = null;
+    }
+
+    function saveClassSettings() {
+      if (!_currentSettingsSlug) return;
+      var btn = document.getElementById("saveSettingsBtn");
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+
+      var weeklyFeeVal = document.getElementById("settingsWeeklyFee").value;
+      var catsRaw = document.getElementById("settingsCategories").value;
+      var categories = catsRaw ? catsRaw.split(",").map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; }) : null;
+
+      var body = {
+        locked: document.getElementById("settingsLocked").checked,
+        forceWeeklyFee: document.getElementById("settingsForceWeeklyFee").checked,
+        features: {
+          pdfExport: document.getElementById("settingsFeaturePdfExport").checked
+        }
+      };
+      if (weeklyFeeVal) body.weeklyFee = Number(weeklyFeeVal);
+      if (categories && categories.length > 0) body.categories = categories;
+
+      api("/api/" + _currentSettingsSlug + "/settings", {
+        method: "PUT",
+        body: JSON.stringify(body)
+      }).then(function(data) {
+        if (data.error) {
+          showToast(data.error, "error");
+        } else {
+          showToast("Settings saved for " + _currentSettingsSlug, "success");
+          closeClassSettings();
+        }
+      }).catch(function(err) {
+        showToast("Failed: " + err.message, "error");
+      }).finally(function() {
+        btn.disabled = false;
+        btn.textContent = "Save Settings";
+      });
+    }
+
+    // Close modal on overlay click
+    document.addEventListener("click", function(e) {
+      if (e.target.classList.contains("modal-overlay")) {
+        closeClassSettings();
+      }
+    });
+
+    // ===== Global Config =====
+    function loadGlobalConfig() {
+      api("/api/config/global").then(function(data) {
+        if (data.error) return;
+        document.getElementById("globalWeeklyFee").value = data.weeklyFee || 5;
+        document.getElementById("globalCategories").value = (data.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"]).join(", ");
+        if (document.getElementById("globalFeaturePdfExport")) {
+          document.getElementById("globalFeaturePdfExport").checked = data.features && data.features.pdfExport === true;
+        }
+      });
+    }
+
+    function saveGlobalConfig() {
+      var weeklyFee = Number(document.getElementById("globalWeeklyFee").value) || 5;
+      var catsRaw = document.getElementById("globalCategories").value;
+      var categories = catsRaw.split(",").map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+      var features = {
+        pdfExport: document.getElementById("globalFeaturePdfExport") ? document.getElementById("globalFeaturePdfExport").checked : false
+      };
+
+      api("/api/config/global", {
+        method: "PUT",
+        body: JSON.stringify({ weeklyFee: weeklyFee, categories: categories, features: features })
+      }).then(function(data) {
+        if (data.error) {
+          showToast(data.error, "error");
+        } else {
+          showToast("Global config saved", "success");
+        }
+      }).catch(function(err) {
+        showToast("Failed: " + err.message, "error");
+      });
     }
 
     // ===== Helpers =====

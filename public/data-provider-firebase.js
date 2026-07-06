@@ -92,10 +92,70 @@
     });
   }
 
+  // ================= CLASS SETTINGS =================
+  var classSettings = null;
+
+  function mergeSettings(globalSettings, classOverrides) {
+    var overrides = classOverrides || {};
+    var defaults = globalSettings || {};
+    return {
+      weeklyFee: overrides.weeklyFee != null ? overrides.weeklyFee : (defaults.weeklyFee || 5),
+      categories: overrides.categories || defaults.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
+      locked: overrides.locked === true,
+      forceWeeklyFee: overrides.forceWeeklyFee === true,
+      features: Object.assign({}, defaults.features || {}, overrides.features || {}),
+    };
+  }
+
+  function loadSettings() {
+    if (!CLASS_ID) {
+      classSettings = { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], locked: false, forceWeeklyFee: false, features: { pdfExport: false } };
+      window.classSettings = classSettings;
+      return Promise.resolve(classSettings);
+    }
+
+    return Promise.all([db.collection("_config").doc("globalSettings").get(), db.collection("_classes").doc(CLASS_ID).get()])
+      .then(function (results) {
+        var globalDoc = results[0];
+        var classDoc = results[1];
+        var globalSettings = globalDoc.exists ? globalDoc.data() : {};
+        var classOverrides = classDoc.exists ? classDoc.data().settings || {} : {};
+        classSettings = mergeSettings(globalSettings, classOverrides);
+        window.classSettings = classSettings;
+        return classSettings;
+      })
+      .catch(function (err) {
+        console.warn("Settings load failed:", err);
+        classSettings = { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], locked: false, forceWeeklyFee: false, features: { pdfExport: false } };
+        window.classSettings = classSettings;
+        return classSettings;
+      });
+  }
+
+  function getSettings() {
+    return classSettings || window.classSettings || null;
+  }
+
+  function isFeatureEnabled(featureName) {
+    var settings = getSettings();
+    return settings && settings.features && settings.features[featureName] === true;
+  }
+
+  // Load settings automatically after data sync
+  var _origSyncAllFromFirestore = syncAllFromFirestore;
+  syncAllFromFirestore = function () {
+    return _origSyncAllFromFirestore().then(function (result) {
+      if (CLASS_ID) return loadSettings().then(function () { return result; });
+      return result;
+    });
+  };
+
   window.firebaseData = {
     syncAllFromFirestore: syncAllFromFirestore,
     syncAllToFirestore: syncAllToFirestore,
     listenToChanges: listenToChanges,
-    getClassId: function () { return CLASS_ID; }
+    getClassId: function () { return CLASS_ID; },
+    getSettings: getSettings,
+    isFeatureEnabled: isFeatureEnabled,
   };
 })();

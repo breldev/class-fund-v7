@@ -309,4 +309,121 @@ router.post("/api/pending/:slug/reject", verifyAdmin, async (req, res) => {
   }
 });
 
+// ================= GLOBAL CONFIG =================
+
+// GET /api/config/global — get global defaults (admin only)
+router.get("/api/config/global", verifyAdmin, async (req, res) => {
+  const db = getDb();
+  if (!db) return res.status(500).json({ error: "Database not available" });
+
+  try {
+    const doc = await db.collection("_config").doc("globalSettings").get();
+    if (!doc.exists) {
+      return res.json({
+        weeklyFee: 5,
+        categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
+        features: { pdfExport: false },
+      });
+    }
+    res.json(doc.data());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/config/global — update global defaults (admin only)
+router.put("/api/config/global", verifyAdmin, async (req, res) => {
+  const db = getDb();
+  if (!db) return res.status(500).json({ error: "Database not available" });
+
+  try {
+    const existing = await db.collection("_config").doc("globalSettings").get();
+    const current = existing.exists
+      ? existing.data()
+      : {
+          weeklyFee: 5,
+          categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
+          features: { pdfExport: false },
+        };
+
+    const updates = {};
+    if (req.body.weeklyFee !== undefined) updates.weeklyFee = Number(req.body.weeklyFee);
+    if (req.body.categories !== undefined) updates.categories = req.body.categories;
+    if (req.body.features !== undefined) updates.features = req.body.features;
+
+    await db
+      .collection("_config")
+      .doc("globalSettings")
+      .set({
+        ...current,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+        updatedBy: req.user.email,
+      });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================= CLASS SETTINGS =================
+
+// GET /api/:slug/settings — get class settings (admin only)
+router.get("/api/:slug/settings", verifyAdmin, async (req, res) => {
+  const db = getDb();
+  if (!db) return res.status(500).json({ error: "Database not available" });
+
+  const { slug } = req.params;
+
+  try {
+    const doc = await db.collection("_classes").doc(slug).get();
+    if (!doc.exists) return res.status(404).json({ error: "Class not found" });
+
+    const data = doc.data();
+    res.json(data.settings || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/:slug/settings — update class settings (admin only)
+router.put("/api/:slug/settings", verifyAdmin, async (req, res) => {
+  const db = getDb();
+  if (!db) return res.status(500).json({ error: "Database not available" });
+
+  const { slug } = req.params;
+
+  try {
+    const doc = await db.collection("_classes").doc(slug).get();
+    if (!doc.exists) return res.status(404).json({ error: "Class not found" });
+
+    const current = doc.data();
+    const existingSettings = current.settings || {};
+
+    const updates = {};
+    if (req.body.weeklyFee !== undefined) updates.weeklyFee = Number(req.body.weeklyFee);
+    if (req.body.categories !== undefined) updates.categories = req.body.categories;
+    if (req.body.locked !== undefined) updates.locked = Boolean(req.body.locked);
+    if (req.body.forceWeeklyFee !== undefined) updates.forceWeeklyFee = Boolean(req.body.forceWeeklyFee);
+    if (req.body.features !== undefined) updates.features = req.body.features;
+
+    await db
+      .collection("_classes")
+      .doc(slug)
+      .update({
+        settings: {
+          ...existingSettings,
+          ...updates,
+          updatedAt: new Date().toISOString(),
+          updatedBy: req.user.email,
+        },
+      });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

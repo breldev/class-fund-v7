@@ -158,7 +158,7 @@ function applyPrefs(){
 }
 loadPrefs();
 
-const EXPENSE_CATEGORIES = ["Supplies","Printing","Food","Transport","Project","Event","Misc"];
+var EXPENSE_CATEGORIES = ["Supplies","Printing","Food","Transport","Project","Event","Misc"];
 
 var weeklyFee = Number(localStorage.getItem("weeklyFee")) || 5;
 
@@ -212,6 +212,10 @@ function changePageSize(sz){
 // ================= SAVE =================
 function _saveStorage(){
   if (document.body.classList.contains("viewer-mode")) return;
+  if (window.classSettings && window.classSettings.locked && !_adminMode) {
+    showToast("Class is locked by admin", "error");
+    return;
+  }
   localStorage.setItem("students", JSON.stringify(students));
   localStorage.setItem("skippedWeeks", JSON.stringify(skippedWeeks));
   localStorage.setItem("expenses", JSON.stringify(expenses));
@@ -230,11 +234,20 @@ function save(){
 
 // ================= SETTINGS =================
 function saveSettings(){
+  if (window.classSettings && window.classSettings.locked && !_adminMode) {
+    showToast("Class is locked by admin", "error");
+    return;
+  }
+
   startDate = $("startDate").value;
   localStorage.setItem("startDate", startDate);
 
   var fee = toNumber($("weeklyFee")?.value);
   if(fee > 0){
+    if (window.classSettings && window.classSettings.forceWeeklyFee && !_adminMode) {
+      showToast("Weekly fee is controlled by admin", "error");
+      return;
+    }
     weeklyFee = fee;
     localStorage.setItem("weeklyFee", fee);
   }
@@ -2976,6 +2989,17 @@ window.onload = () => {
 function finishInit(){
   document.body.classList.add("viewer-mode");
 
+  // Apply class settings from Firestore (loaded by data-provider-firebase.js)
+  if (window.classSettings) {
+    if (window.classSettings.categories) {
+      EXPENSE_CATEGORIES = window.classSettings.categories;
+    }
+    if (window.classSettings.forceWeeklyFee && window.classSettings.weeklyFee) {
+      weeklyFee = window.classSettings.weeklyFee;
+      localStorage.setItem("weeklyFee", weeklyFee);
+    }
+  }
+
   // Assign codes to existing students that don't have one
   var codesChanged = false;
   students.forEach(function(s) {
@@ -2984,13 +3008,16 @@ function finishInit(){
       codesChanged = true;
     }
   });
-  if (codesChanged) save();
+  if (codesChanged && !(window.classSettings && window.classSettings.locked && !_adminMode)) save();
 
   if($("startDate")){
     $("startDate").value = startDate || "";
   }
   if($("weeklyFee")){
     $("weeklyFee").value = weeklyFee || 5;
+    if (window.classSettings && window.classSettings.forceWeeklyFee) {
+      $("weeklyFee").disabled = true;
+    }
   }
 
   // Update sidebar with class name from URL
@@ -3018,6 +3045,13 @@ function finishInit(){
   // Bind Excel export safe wrapper (must exist after scripts load)
   if(typeof window.exportExcelBackup === "function"){
     window.exportExcelBackupSafe = window.exportExcelBackupSafe;
+  }
+
+  // Show/hide PDF export button based on feature flag
+  var pdfBtn = document.getElementById("exportPdfBtn");
+  if (pdfBtn) {
+    var pdfEnabled = window.classSettings && window.classSettings.features && window.classSettings.features.pdfExport === true;
+    pdfBtn.style.display = pdfEnabled ? "" : "none";
   }
 
   render();
@@ -3127,6 +3161,30 @@ function exportExcelBackupSafe(){
   }catch(err){
     console.error(err);
     alert("Excel export failed: " + (err?.message || String(err)));
+  }
+}
+
+function exportPDFBackupSafe(){
+  try{
+    if(typeof window.exportPDFBackup !== "function"){
+      alert("PDF export failed: export function not available.");
+      return;
+    }
+
+    const provider = window.localStorageExcelDataProvider;
+    if(!provider){
+      alert("PDF export failed: data provider not found.");
+      return;
+    }
+
+    window.exportPDFBackup(provider)
+      .catch((err)=>{
+        console.error(err);
+        alert("PDF export failed: " + (err?.message || String(err)));
+      });
+  }catch(err){
+    console.error(err);
+    alert("PDF export failed: " + (err?.message || String(err)));
   }
 }
 
