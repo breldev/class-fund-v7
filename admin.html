@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="navbar.css?v=2">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -27,6 +26,38 @@
         radial-gradient(ellipse at 80% 20%, rgba(139,92,246,.12) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(52,211,153,.08) 0%, transparent 50%);
     }
+
+    /* ===== NAVBAR (inlined) ===== */
+    .topnav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      height: 52px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+      background: rgba(7, 11, 20, 0.85);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+    }
+    .topnav-brand {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: #f1f5f9;
+      font-size: 0.95rem; font-weight: 700;
+    }
+    .topnav-brand:hover { color: #818cf8; }
+    .topnav-brand-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: #fff;
+    }
+    .topnav-links { display: flex; align-items: center; gap: 4px; }
+    .topnav-link {
+      padding: 6px 14px; border-radius: 8px;
+      text-decoration: none; color: #94a3b8;
+      font-size: 0.85rem; font-weight: 500;
+      transition: all 0.15s;
+    }
+    .topnav-link:hover { color: #e2e8f0; background: rgba(99, 102, 241, 0.1); }
+    .topnav-link.active { color: #818cf8; background: rgba(99, 102, 241, 0.12); font-weight: 600; }
 
     .container { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 40px 20px; }
 
@@ -209,8 +240,25 @@
   <script src="firebase-config.js"></script>
 
   <script>
-    const auth = firebase.auth();
-    let idToken = null;
+    // === TIMEOUT FIRST — always runs, even if Firebase CDN fails ===
+    setTimeout(function() {
+      var loading = document.getElementById("loadingSection");
+      if (loading && loading.style.display !== "none") {
+        loading.style.display = "none";
+        document.getElementById("loginSection").style.display = "block";
+      }
+    }, 5000);
+
+    var auth = null;
+    var idToken = null;
+
+    // === Firebase init (wrapped in try-catch) ===
+    try {
+      auth = firebase.auth();
+    } catch(e) {
+      console.error("Firebase init failed:", e);
+      // Timeout above will handle showing login form
+    }
 
     // ===== Toast =====
     function showToast(msg, type) {
@@ -229,6 +277,12 @@
 
       if (!email || !pass) {
         errEl.textContent = "Please fill in all fields.";
+        errEl.style.display = "block";
+        return;
+      }
+
+      if (!auth) {
+        errEl.textContent = "Firebase not loaded. Please refresh the page.";
         errEl.style.display = "block";
         return;
       }
@@ -253,6 +307,7 @@
     }
 
     function handleLogout() {
+      if (!auth) return;
       auth.signOut().then(function() {
         idToken = null;
         document.getElementById("loginSection").style.display = "block";
@@ -261,6 +316,7 @@
     }
 
     function getToken() {
+      if (!auth || !auth.currentUser) return Promise.reject("No auth");
       return auth.currentUser.getIdToken(true).then(function(token) {
         idToken = token;
         return token;
@@ -270,7 +326,9 @@
     function showDashboard() {
       document.getElementById("loginSection").style.display = "none";
       document.getElementById("dashboardSection").style.display = "block";
-      document.getElementById("adminEmail").textContent = auth.currentUser.email;
+      if (auth && auth.currentUser) {
+        document.getElementById("adminEmail").textContent = auth.currentUser.email;
+      }
       loadClasses();
       loadPending();
     }
@@ -440,29 +498,22 @@
       return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
 
-    // ===== Init =====
-    auth.onAuthStateChanged(function(user) {
-      document.getElementById("loadingSection").style.display = "none";
-      if (user && user.email && user.email.toLowerCase() === "brailekenteusebio@gmail.com") {
-        getToken()
-          .then(function() { showDashboard(); })
-          .catch(function(err) {
-            console.error("Token refresh failed:", err);
-            document.getElementById("loginSection").style.display = "block";
-          });
-      } else {
-        document.getElementById("loginSection").style.display = "block";
-      }
-    });
-
-    // Fallback: if onAuthStateChanged never fires, show login after 5s
-    setTimeout(function() {
-      var loading = document.getElementById("loadingSection");
-      if (loading && loading.style.display !== "none") {
-        loading.style.display = "none";
-        document.getElementById("loginSection").style.display = "block";
-      }
-    }, 5000);
+    // ===== Auth State Init =====
+    if (auth) {
+      auth.onAuthStateChanged(function(user) {
+        document.getElementById("loadingSection").style.display = "none";
+        if (user && user.email && user.email.toLowerCase() === "brailekenteusebio@gmail.com") {
+          getToken()
+            .then(function() { showDashboard(); })
+            .catch(function(err) {
+              console.error("Token refresh failed:", err);
+              document.getElementById("loginSection").style.display = "block";
+            });
+        } else {
+          document.getElementById("loginSection").style.display = "block";
+        }
+      });
+    }
   </script>
 </body>
 </html>

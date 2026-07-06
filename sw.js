@@ -1,4 +1,4 @@
-var CACHE = "classfund-v9";
+var CACHE = "classfund-v10";
 
 // No precache — everything is fetched on demand from the network.
 // This prevents SW install failure from breaking the page.
@@ -14,7 +14,7 @@ function isApiRoute(url) {
 }
 
 function isStaticAsset(url) {
-  var path = url.replace(/^https?:\/\/[^\/]+/, "");
+  var path = url.replace(/^https?:\/\/[^\/]+/, "").split("?")[0];
   return /\.(css|js|json|png|ico|svg|jpg|jpeg|gif|woff|woff2|ttf|eot|webmanifest)$/.test(path);
 }
 
@@ -77,7 +77,7 @@ self.addEventListener("fetch", function (e) {
       }
       return response;
     }).catch(function () {
-      return caches.match(e.request);
+      return caches.match(e.request) || new Response("Offline", { status: 503, statusText: "Offline" });
     })
   );
 });

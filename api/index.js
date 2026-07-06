@@ -12,44 +12,38 @@ const ROOT = path.join(__dirname, '..');
 // ================= MIDDLEWARE =================
 app.use(express.json());
 
-// ================= LANDING PAGE =================
-
-// Serve landing.html at root (before static middleware so it takes priority over index.html)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(ROOT, 'landing.html'));
-});
-
-// Serve static files from project root
-app.use(express.static(ROOT));
-
-// ================= API ROUTES =================
+// ================= API ROUTES (before static) =================
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// Mount admin routes (class CRUD, pending registrations, approval)
+// Mount admin routes (class CRUD, pending registrations, approval, public class list)
 app.use(adminRoutes);
 
-// ================= CLASS ROUTING =================
+// ================= PAGE ROUTES (before static) =================
 
-// Serve index.html for /class/:slug routes
-// The client-side code reads the slug from the URL
-app.get('/class/:slug', (req, res) => {
-  res.sendFile(path.join(ROOT, 'index.html'));
+// Landing page at root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(ROOT, 'landing.html'));
 });
 
-// ================= FALLBACK =================
-
-// Serve admin.html for /admin
+// Admin dashboard
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(ROOT, 'admin.html'));
 });
 
-// Serve index.html for unknown routes (SPA fallback)
+// Class tracker pages
+app.get('/class/:slug', (req, res) => {
+  res.sendFile(path.join(ROOT, 'index.html'));
+});
+
+// ================= STATIC FILES (after all routes) =================
+app.use(express.static(ROOT));
+
+// ================= FALLBACK =================
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Not found' });
   }
@@ -57,8 +51,6 @@ app.get('*', (req, res) => {
 });
 
 // ================= START =================
-
-// Only start server when run directly (not imported by Vercel)
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Class Fund Server running on http://localhost:${PORT}`);
