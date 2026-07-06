@@ -1,9 +1,27 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/class/([^/]+)", "destination": "/api/index.js" },
-    { "source": "/admin", "destination": "/api/index.js" },
-    { "source": "/", "destination": "/api/index.js" }
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/class/([^/]+)",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/admin",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/((?!.*\\.(css|js|json|png|ico|svg|jpg|jpeg|gif|woff|woff2|ttf|eot|webmanifest)$).*)",
+      "dest": "/api/index.js"
+    }
   ]
 }
