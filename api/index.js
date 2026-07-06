@@ -40,7 +40,9 @@ app.get('/class/:slug', (req, res) => {
 });
 
 // ================= STATIC FILES (after all routes) =================
+// On Vercel, public/ files are served at edge; locally, serve from project root
 app.use(express.static(ROOT));
+app.use(express.static(path.join(ROOT, 'public')));
 
 // ================= FALLBACK =================
 app.get('*', (req, res) => {

@@ -20,7 +20,11 @@
       "dest": "/api/index.js"
     },
     {
-      "src": "/((?!.*\\.(css|js|json|png|ico|svg|jpg|jpeg|gif|woff|woff2|ttf|eot|webmanifest)$).*)",
+      "src": "/",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/(.*)",
       "dest": "/api/index.js"
     }
   ]
