@@ -211,17 +211,18 @@ function changePageSize(sz){
 
 // ================= SAVE =================
 function _saveStorage(){
-  if (document.body.classList.contains("viewer-mode")) return;
+  if (document.body.classList.contains("viewer-mode")) return false;
   if (window.classSettings && window.classSettings.locked && !_adminMode) {
     showToast("Class is locked by admin", "error");
-    return;
+    return false;
   }
   localStorage.setItem("students", JSON.stringify(students));
   localStorage.setItem("skippedWeeks", JSON.stringify(skippedWeeks));
   localStorage.setItem("expenses", JSON.stringify(expenses));
+  return true;
 }
 function save(){
-  _saveStorage();
+  if (!_saveStorage()) return;
   _lastSaveTime = Date.now();
   updateLastSaved();
   if (typeof firebaseData !== "undefined" && typeof cfAuth !== "undefined" && cfAuth.getCurrentUser && cfAuth.getCurrentUser()) {

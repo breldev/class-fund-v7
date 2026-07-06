@@ -76,7 +76,7 @@
   function syncAllToFirestore() {
     var data = getAllDataFromLocal();
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-    return getClassDoc().set(data).then(function () {
+    return getClassDoc().set(data, { merge: true }).then(function () {
       return true;
     }).catch(function (err) {
       console.error("Firestore write failed:", err);
