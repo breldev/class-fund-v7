@@ -60,23 +60,14 @@
       if (doc.exists) {
         var data = doc.data();
         setAllDataToLocal(data);
-        // Extract settings from the same document (stored by admin API)
-        if (data.classSettings) {
-          var s = data.classSettings;
-          classSettings = {
-            weeklyFee: s.weeklyFee != null ? s.weeklyFee : 5,
-            categories: s.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
-            locked: s.locked === true,
-            forceWeeklyFee: s.forceWeeklyFee === true,
-            features: s.features || { pdfExport: false },
-          };
-          window.classSettings = classSettings;
-        }
+        applyClassSettings(data);
         return true;
       }
+      applyClassSettings(null);
       return false;
     }).catch(function (err) {
       console.warn("Firestore read failed:", err);
+      applyClassSettings(null);
       return false;
     });
   }
