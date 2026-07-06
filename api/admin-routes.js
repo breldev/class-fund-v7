@@ -405,7 +405,6 @@ router.put("/api/:slug/settings", verifyAdmin, async (req, res) => {
     const updates = {};
     if (req.body.weeklyFee !== undefined) updates.weeklyFee = Number(req.body.weeklyFee);
     if (req.body.categories !== undefined) updates.categories = req.body.categories;
-    if (req.body.locked !== undefined) updates.locked = Boolean(req.body.locked);
     if (req.body.forceWeeklyFee !== undefined) updates.forceWeeklyFee = Boolean(req.body.forceWeeklyFee);
     if (req.body.features !== undefined) updates.features = req.body.features;
 
@@ -428,7 +427,6 @@ router.put("/api/:slug/settings", verifyAdmin, async (req, res) => {
     const mergedSettings = {
       weeklyFee: updates.weeklyFee != null ? updates.weeklyFee : (existingSettings.weeklyFee != null ? existingSettings.weeklyFee : globalDefaults.weeklyFee || 5),
       categories: updates.categories || existingSettings.categories || globalDefaults.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
-      locked: updates.locked !== undefined ? updates.locked : (existingSettings.locked === true),
       forceWeeklyFee: updates.forceWeeklyFee !== undefined ? updates.forceWeeklyFee : (existingSettings.forceWeeklyFee === true),
       features: Object.assign({}, globalDefaults.features || {}, existingSettings.features || {}, updates.features || {}),
     };

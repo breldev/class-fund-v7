@@ -105,12 +105,11 @@
       classSettings = {
         weeklyFee: s.weeklyFee != null ? s.weeklyFee : 5,
         categories: s.categories || ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"],
-        locked: s.locked === true,
         forceWeeklyFee: s.forceWeeklyFee === true,
         features: s.features || { pdfExport: false },
       };
     } else {
-      classSettings = { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], locked: false, forceWeeklyFee: false, features: { pdfExport: false } };
+      classSettings = { weeklyFee: 5, categories: ["Supplies", "Printing", "Food", "Transport", "Project", "Event", "Misc"], forceWeeklyFee: false, features: { pdfExport: false } };
     }
     window.classSettings = classSettings;
   }
