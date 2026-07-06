@@ -1,21 +1,9 @@
 {
   "version": 2,
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/class/([^/]+)",
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/admin",
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/",
-      "dest": "/api/index.js"
-    }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/class/([^/]+)", "destination": "/api/index.js" },
+    { "source": "/admin", "destination": "/api/index.js" },
+    { "source": "/", "destination": "/api/index.js" }
   ]
 }
