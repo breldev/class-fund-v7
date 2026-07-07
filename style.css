@@ -509,6 +509,27 @@ body::after {
   gap: 10px;
 }
 
+/* Connection status indicator */
+.conn-indicator {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  gap: 5px;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+.conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.conn-online { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.5); }
+.conn-offline { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+
 /* Sidebar toggle button (topbar) */
 .sidebar-toggle {
   display: none;

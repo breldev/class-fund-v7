@@ -215,6 +215,7 @@ function _saveStorage(){
   localStorage.setItem("students", JSON.stringify(students));
   localStorage.setItem("skippedWeeks", JSON.stringify(skippedWeeks));
   localStorage.setItem("expenses", JSON.stringify(expenses));
+  localStorage.setItem("_lastLocalSave", Date.now().toString());
 }
 function save(){
   _saveStorage();
@@ -2958,19 +2959,35 @@ function updateAuthUI(){
 }
 
 // ================= INIT =================
+function initFromStorage(){
+  students = loadStudents();
+  startDate = localStorage.getItem("startDate") || null;
+  weeklyFee = Number(localStorage.getItem("weeklyFee")) || 5;
+  skippedWeeks = JSON.parse(localStorage.getItem("skippedWeeks")) || [];
+  lastImportedStudentIds = JSON.parse(localStorage.getItem("lastImportedStudentIds")) || [];
+  manualWeekOverride = localStorage.getItem("manualWeekOverride") || null;
+  finishInit();
+}
 window.onload = () => {
   if (typeof firebaseData !== "undefined") {
-    firebaseData.syncAllFromFirestore().then(function(){
-      students = loadStudents();
-      startDate = localStorage.getItem("startDate") || null;
-      weeklyFee = Number(localStorage.getItem("weeklyFee")) || 5;
-      skippedWeeks = JSON.parse(localStorage.getItem("skippedWeeks")) || [];
-      lastImportedStudentIds = JSON.parse(localStorage.getItem("lastImportedStudentIds")) || [];
-      manualWeekOverride = localStorage.getItem("manualWeekOverride") || null;
-      finishInit();
-    }).catch(function(){ finishInit(); });
+    var hasLocalStudents = localStorage.getItem("students") !== null;
+    var user = typeof cfAuth !== "undefined" && cfAuth.getCurrentUser && cfAuth.getCurrentUser();
+
+    if (hasLocalStudents && user) {
+      firebaseData.syncAllToFirestore().then(function(){
+        return firebaseData.syncAllFromFirestore();
+      }).then(function(){
+        initFromStorage();
+      }).catch(function(){
+        initFromStorage();
+      });
+    } else {
+      firebaseData.syncAllFromFirestore().then(function(){
+        initFromStorage();
+      }).catch(function(){ initFromStorage(); });
+    }
   } else {
-    finishInit();
+    initFromStorage();
   }
 };
 function finishInit(){
@@ -3937,6 +3954,35 @@ function showConfetti(){
       ticking = true;
     }
   }, { passive: true });
+})();
+
+// ================= CONNECTION MONITORING =================
+(function(){
+  var indicator = document.getElementById("connIndicator");
+  if (!indicator) return;
+  var dot = indicator.querySelector(".conn-dot");
+  function setOnline(){
+    dot.className = "conn-dot conn-online";
+    indicator.title = "Online";
+  }
+  function setOffline(){
+    dot.className = "conn-dot conn-offline";
+    indicator.title = "Offline - changes saved locally";
+  }
+  if (!navigator.onLine) setOffline();
+  window.addEventListener("online", function(){
+    setOnline();
+    showToast("Back online - syncing changes...", "success");
+    if (typeof firebaseData !== "undefined" && typeof cfAuth !== "undefined" && cfAuth.getCurrentUser && cfAuth.getCurrentUser()) {
+      firebaseData.syncAllToFirestore().catch(function(err){
+        console.error("Auto-sync on reconnect failed:", err);
+      });
+    }
+  });
+  window.addEventListener("offline", function(){
+    setOffline();
+    showToast("You are offline - changes will sync when connection returns", "info");
+  });
 })();
 
 console.log("Students Loaded:", students);
