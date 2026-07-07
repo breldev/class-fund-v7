@@ -3,9 +3,6 @@
    Do NOT remove or rename classes/IDs used by app.js
    ============================================================ */
 
-/* ---------- FONTS ---------- */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
 /* ---------- CUSTOM PROPERTIES ---------- */
 :root {
   color-scheme: dark;

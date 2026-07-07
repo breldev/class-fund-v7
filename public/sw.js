@@ -1,7 +1,29 @@
-var CACHE = "classfund-v10";
+var CACHE = "classfund-v11";
 
-// No precache — everything is fetched on demand from the network.
-// This prevents SW install failure from breaking the page.
+var PRECACHE_URLS = [
+  "/",
+  "/index.html",
+  "/landing.html",
+  "/admin.html",
+  "/style.css",
+  "/navbar.css",
+  "/app.js",
+  "/data-provider-firebase.js",
+  "/firebase-config.js",
+  "/firebase-auth.js",
+  "/class-storage.js",
+  "/data-provider-localstorage.js",
+  "/xlsx-export.js",
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-icon.png",
+  "/favicon.ico",
+  "/vendor/lucide.min.js",
+  "/vendor/firebase-app-compat.js",
+  "/vendor/firebase-auth-compat.js",
+  "/vendor/firebase-firestore-compat.js",
+];
 
 function isClassRoute(url) {
   var path = url.replace(/^https?:\/\/[^\/]+/, "");
@@ -19,8 +41,15 @@ function isStaticAsset(url) {
 }
 
 self.addEventListener("install", function (e) {
-  // Activate immediately — no precache needed
-  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE).then(function (cache) {
+      return cache.addAll(PRECACHE_URLS);
+    }).then(function () {
+      return self.skipWaiting();
+    }).catch(function () {
+      return self.skipWaiting();
+    })
+  );
 });
 
 self.addEventListener("activate", function (e) {
@@ -40,19 +69,16 @@ self.addEventListener("fetch", function (e) {
 
   var reqUrl = e.request.url;
 
-  // Class routes: always fetch from server (never cached)
   if (isClassRoute(reqUrl)) {
     e.respondWith(fetch(e.request));
     return;
   }
 
-  // API routes: always fetch from server (never cached)
   if (isApiRoute(reqUrl)) {
     e.respondWith(fetch(e.request));
     return;
   }
 
-  // Static assets: network-first, fall back to cache
   if (isStaticAsset(reqUrl)) {
     e.respondWith(
       fetch(e.request).then(function (response) {
@@ -68,7 +94,6 @@ self.addEventListener("fetch", function (e) {
     return;
   }
 
-  // Everything else: network-first, fall back to cache
   e.respondWith(
     fetch(e.request).then(function (response) {
       if (response && response.status === 200) {
@@ -77,7 +102,9 @@ self.addEventListener("fetch", function (e) {
       }
       return response;
     }).catch(function () {
-      return caches.match(e.request) || new Response("Offline", { status: 503, statusText: "Offline" });
+      return caches.match(e.request).then(function (match) {
+        return match || caches.match("/");
+      });
     })
   );
 });
