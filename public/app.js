@@ -2950,7 +2950,7 @@ function updateAuthUI(){
     document.body.classList.remove("viewer-mode");
   } else if (isLoggedIn) {
     _adminMode = false;
-    document.body.classList.remove("viewer-mode");
+    document.body.classList.add("viewer-mode");
   } else {
     _adminMode = false;
     document.body.classList.add("viewer-mode");
