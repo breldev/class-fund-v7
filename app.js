@@ -2945,12 +2945,9 @@ function updateAuthUI(){
   if (tLogout) tLogout.style.display = isLoggedIn ? "" : "none";
 
   // Admin vs auditor vs visitor
-  if (isAdmin) {
-    _adminMode = true;
+  if (isLoggedIn) {
+    _adminMode = isAdmin;
     document.body.classList.remove("viewer-mode");
-  } else if (isLoggedIn) {
-    _adminMode = false;
-    document.body.classList.add("viewer-mode");
   } else {
     _adminMode = false;
     document.body.classList.add("viewer-mode");
@@ -3030,7 +3027,10 @@ function finishInit(){
     var sidebarName = document.querySelector(".sidebar-name");
     var sidebarRole = document.querySelector(".sidebar-role");
     if (sidebarName) sidebarName.textContent = classId.replace(/-/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-    if (sidebarRole) sidebarRole.textContent = "Auditor";
+    if (sidebarRole) {
+      var _isAdmin = typeof cfAuth !== "undefined" && cfAuth.isAdmin && cfAuth.isAdmin();
+      sidebarRole.textContent = _isAdmin ? "Admin" : "Auditor";
+    }
     document.title = classId.replace(/-/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); }) + " — Class Fund";
     console.log("Class ID:", classId);
   }
