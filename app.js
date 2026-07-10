@@ -1907,7 +1907,7 @@ function copyReport(){
   const remainingAfterCollected = expected - totalCollected;
 
   const expensesTotal = getTotalExpenses();
-  const netBalance = totalCollected - expensesTotal;
+  const netBalance = totalCollected + getTotalUnidentified() - expensesTotal;
 
   const eventExpensesSum = expenses.reduce((s,e) => {
     if(e.fund === "both") return s + toNumber(e.eventAmount || 0);
@@ -2071,7 +2071,7 @@ function copyShortReport(){
   const remaining = expected - totalCollected;
 
   const totalExpenses = getTotalExpenses();
-  const netBalance = totalCollected - totalExpenses;
+  const netBalance = totalCollected + getTotalUnidentified() - totalExpenses;
 
   const report = `📊 CLASS FUND UPDATE
 Week: ${cur}

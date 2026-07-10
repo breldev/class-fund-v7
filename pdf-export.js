@@ -187,7 +187,7 @@
     y += 8;
 
     // Balance
-    var balance = totalCollected - totalExpenses;
+    var balance = totalCollected + getTotalUnidentified() - totalExpenses;
     y += 2;
     doc.setFont("helvetica", "bold");
     text("Net Balance:", margin, y);
