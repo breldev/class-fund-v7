@@ -330,6 +330,16 @@ function getMonthDebt(student){
   return Math.max(0, (validWeeks - weeksCovered) * weeklyFee);
 }
 
+function isStudentAdvanced(student){
+  if (!(student.payments||[]).length) return false;
+  var cur = getCurrentWeek();
+  var validWeeks = 0;
+  for(var i = 1; i <= cur; i++){
+    if(!isSkipped(i)) validWeeks++;
+  }
+  return getTotal(student) > validWeeks * weeklyFee;
+}
+
 function setManualWeek(week){
   week = Number(week);
   if(!week || week < 1){ showToast("Enter a valid week (1+)", "error"); return; }
@@ -1245,7 +1255,7 @@ function render(){
       if(_statusFilter === "updated") return md === 0 && (s.payments||[]).length > 0;
       if(_statusFilter === "debt") return md > 0;
       if(_statusFilter === "none") return !(s.payments||[]).length;
-      if(_statusFilter === "advanced") return false;
+      if(_statusFilter === "advanced") return isStudentAdvanced(s);
       return true;
     });
   }
@@ -1278,18 +1288,16 @@ function render(){
   }
 
   // Group by status
-  var groups = { updated: [], debt: [], none: [] };
+  var groups = { updated: [], debt: [], advanced: [], none: [] };
   filtered.forEach(function(s){
     var md = getMonthDebt(s);
     var pc = (s.payments||[]).length;
-    if(pc > 0 && md === 0) groups.updated.push(s);
-    else if(md > 0) groups.debt.push(s);
-    else groups.none.push(s);
+    if(isStudentAdvanced(s)) { groups.advanced.push(s); counts.advanced++; }
+    else if(pc > 0 && md === 0) { groups.updated.push(s); counts.updated++; }
+    else if(md > 0) { groups.debt.push(s); counts.debt++; }
+    else { groups.none.push(s); counts.none++; }
     totalCollected += getTotal(s);
     totalDebtOwed += md;
-    if(pc > 0 && md === 0) counts.updated++;
-    else if(md > 0) counts.debt++;
-    else counts.none++;
   });
 
   // Update stats bar
