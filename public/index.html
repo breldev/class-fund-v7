@@ -144,6 +144,13 @@
                 <span class="dash-metric-value" id="dashProgressPct">0%</span>
               </div>
             </div>
+            <div class="dash-metric dash-metric-unidentified">
+              <div class="dash-metric-icon dash-icon-unidentified"><i data-lucide="help-circle"></i></div>
+              <div class="dash-metric-body">
+                <span class="dash-metric-label">Unidentified</span>
+                <span class="dash-metric-value dash-value-unidentified" id="dashUnidentified">PHP 0</span>
+              </div>
+            </div>
           </div>
 
           <!-- Progress Bar -->
@@ -251,6 +258,17 @@
                   <span class="dash-insight-dot" style="background:var(--amber)"></span>
                   <span class="dash-insight-text">Reserve Fund: <strong>30%</strong></span>
                 </div>
+              </div>
+            </div>
+
+            <!-- Unidentified Funds Widget -->
+            <div class="dash-widget dash-widget-unidentified">
+              <div class="dash-widget-head">
+                <h3>Unidentified Funds</h3>
+                <button class="ghost-btn" onclick="showAddUnidentifiedModal()" style="font-size:11px;gap:4px"><i data-lucide="plus" style="width:14px;height:14px"></i> Add</button>
+              </div>
+              <div class="dash-widget-body" id="unidentifiedWidgetBody">
+                <div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px">No unidentified funds</div>
               </div>
             </div>
           </div>
@@ -668,6 +686,31 @@
     <div class="modal-content" style="max-width:480px" onclick="event.stopPropagation()">
       <span class="close" onclick="closeStudentViewModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeStudentViewModal()">✕</span>
       <div id="studentViewContent"></div>
+    </div>
+  </div>
+
+  <!-- Add Unidentified Fund Modal -->
+  <div id="addUnidentifiedModal" class="modal">
+    <div class="modal-content" style="max-width:380px" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeModalById('addUnidentifiedModal')" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeModalById('addUnidentifiedModal')">✕</span>
+      <h2 style="margin:0 0 6px;font-size:20px;font-weight:800">Add Unidentified Fund</h2>
+      <p style="color:var(--text-secondary);font-size:12px;margin-bottom:16px">Record money received but don't know who paid yet</p>
+      <input id="ufAmount" type="number" placeholder="Amount" min="1" style="margin-bottom:10px">
+      <input id="ufDate" type="date" style="margin-bottom:10px">
+      <input id="ufNote" type="text" placeholder="Note (e.g., from treasurer, GCash)" style="margin-bottom:12px">
+      <button onclick="handleAddUnidentifiedFund()" style="width:100%">Add Fund</button>
+    </div>
+  </div>
+
+  <!-- Assign Unidentified Fund Modal -->
+  <div id="assignUnidentifiedModal" class="modal">
+    <div class="modal-content" style="max-width:400px" onclick="event.stopPropagation()">
+      <span class="close" onclick="closeModalById('assignUnidentifiedModal')" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeModalById('assignUnidentifiedModal')">✕</span>
+      <h2 style="margin:0 0 6px;font-size:20px;font-weight:800">Assign to Student</h2>
+      <p style="color:var(--text-secondary);font-size:12px;margin-bottom:16px" id="assignFundInfo">Assigning ₱0</p>
+      <select id="assignStudentSelect" style="margin-bottom:10px"><option value="">Select student...</option></select>
+      <input id="assignAmount" type="number" placeholder="Amount" min="1" style="margin-bottom:12px">
+      <button onclick="handleAssignUnidentifiedFund()" style="width:100%">Assign</button>
     </div>
   </div>
 

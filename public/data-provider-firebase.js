@@ -37,6 +37,7 @@
       archives: JSON.parse(localStorage.getItem("archives") || "[]"),
       paymentHistory: JSON.parse(localStorage.getItem("paymentHistory") || "[]"),
       skippedWeeks: JSON.parse(localStorage.getItem("skippedWeeks") || "[]"),
+      unidentifiedFunds: JSON.parse(localStorage.getItem("unidentifiedFunds") || "[]"),
       startDate: localStorage.getItem("startDate") || null,
       manualWeekOverride: localStorage.getItem("manualWeekOverride") || null,
       currentMonth: localStorage.getItem("currentMonth") || null
@@ -49,6 +50,7 @@
     if (Array.isArray(data.archives)) localStorage.setItem("archives", JSON.stringify(data.archives));
     if (Array.isArray(data.paymentHistory)) localStorage.setItem("paymentHistory", JSON.stringify(data.paymentHistory));
     if (Array.isArray(data.skippedWeeks)) localStorage.setItem("skippedWeeks", JSON.stringify(data.skippedWeeks));
+    if (Array.isArray(data.unidentifiedFunds)) localStorage.setItem("unidentifiedFunds", JSON.stringify(data.unidentifiedFunds));
     if (data.startDate) localStorage.setItem("startDate", data.startDate);
     if (data.manualWeekOverride) localStorage.setItem("manualWeekOverride", data.manualWeekOverride);
     if (data.currentMonth) localStorage.setItem("currentMonth", data.currentMonth);

@@ -10,6 +10,29 @@ let expenses =
 JSON.parse(localStorage.getItem("expenses")) || [];
 
 
+function renderUnidentifiedWidget(){
+  var body = $("unidentifiedWidgetBody");
+  if (!body) return;
+  if (!unidentifiedFunds.length) {
+    body.innerHTML = '<div class="uf-empty">No unidentified funds</div>';
+    return;
+  }
+  var html = "";
+  unidentifiedFunds.forEach(function(f){
+    html += '<div class="uf-item">' +
+      '<div class="uf-left">' +
+        '<span class="uf-amount">₱' + toNumber(f.amount).toLocaleString() + '</span>' +
+        '<span class="uf-meta">' + escHtml(f.date || "") + (f.note ? " — " + escHtml(f.note) : "") + '</span>' +
+      '</div>' +
+      '<div class="uf-actions">' +
+        '<button class="uf-btn uf-btn-assign" onclick="showAssignUnidentifiedModal(\'' + f.id + '\')">Assign</button>' +
+        '<button class="uf-btn uf-btn-delete" onclick="deleteUnidentifiedFund(\'' + f.id + '\')">Delete</button>' +
+      '</div>' +
+    '</div>';
+  });
+  body.innerHTML = html;
+}
+
 function renderAnalytics(){
 
   if(!archives.length) return;
@@ -91,6 +114,8 @@ let lastImportedStudentIds =
 JSON.parse(localStorage.getItem("lastImportedStudentIds")) || [];
 let manualWeekOverride =
 localStorage.getItem("manualWeekOverride") || null;
+let unidentifiedFunds =
+JSON.parse(localStorage.getItem("unidentifiedFunds")) || [];
 
 var _sortCol = null;
 var _sortDir = 1;
@@ -215,6 +240,7 @@ function _saveStorage(){
   localStorage.setItem("students", JSON.stringify(students));
   localStorage.setItem("skippedWeeks", JSON.stringify(skippedWeeks));
   localStorage.setItem("expenses", JSON.stringify(expenses));
+  localStorage.setItem("unidentifiedFunds", JSON.stringify(unidentifiedFunds));
   localStorage.setItem("_lastLocalSave", Date.now().toString());
 }
 function save(){
@@ -757,6 +783,62 @@ function getTotalExpenses(){
   return expenses.reduce((sum,expense) => sum + toNumber(expense.amount),0);
 }
 
+function getTotalUnidentified(){
+  return unidentifiedFunds.reduce(function(sum, f){ return sum + toNumber(f.amount); }, 0);
+}
+
+function addUnidentifiedFund(amount, date, note){
+  if (!amount || amount <= 0) { showToast("Enter a valid amount", "error"); return; }
+  unidentifiedFunds.push({
+    id: "uf_" + Date.now() + "_" + Math.random().toString(36).slice(2,6),
+    amount: toNumber(amount),
+    date: date || new Date().toISOString().slice(0,10),
+    note: note || "",
+    createdAt: Date.now()
+  });
+  save();
+  render();
+  showToast("Unidentified fund added", "success");
+}
+
+function deleteUnidentifiedFund(id){
+  unidentifiedFunds = unidentifiedFunds.filter(function(f){ return f.id !== id; });
+  save();
+  render();
+}
+
+function assignUnidentifiedFund(fundId, studentId, assignAmount){
+  var fund = unidentifiedFunds.find(function(f){ return f.id === fundId; });
+  if (!fund) { showToast("Fund not found", "error"); return; }
+  var student = students.find(function(s){ return s.id === studentId; });
+  if (!student) { showToast("Student not found", "error"); return; }
+
+  assignAmount = toNumber(assignAmount);
+  if (assignAmount <= 0 || assignAmount > fund.amount) {
+    showToast("Invalid amount", "error");
+    return;
+  }
+
+  if (!student.payments) student.payments = [];
+  var week = getCurrentWeek();
+  student.payments.push({
+    week: week,
+    amount: assignAmount,
+    date: new Date().toISOString().slice(0,10)
+  });
+
+  var remaining = fund.amount - assignAmount;
+  if (remaining <= 0) {
+    unidentifiedFunds = unidentifiedFunds.filter(function(f){ return f.id !== fundId; });
+  } else {
+    fund.amount = remaining;
+  }
+
+  save();
+  render();
+  showToast("₱" + assignAmount.toLocaleString() + " assigned to " + student.name, "success");
+}
+
 function readReceiptImage(file){
   return new Promise((resolve,reject) => {
     if(!file){
@@ -920,7 +1002,7 @@ function renderExpenses(){
     if(tblEl) tblEl.classList.add("table-upgraded", "exp-tbl");
   }
   const total = getTotalExpenses();
-  const balance = getTotalCollected() - total;
+  const balance = getTotalCollected() + getTotalUnidentified() - total;
 
   if($("expenseTotal")) animateNumber($("expenseTotal"), total);
   if($("netBalance")) animateNumber($("netBalance"), balance);
@@ -1391,6 +1473,8 @@ function render(){
   animateNumber($("expected"), expected);
   animateNumber($("remaining"), Math.max(0,expected-monthTotalCollected));
 
+  if ($("dashUnidentified")) animateNumber($("dashUnidentified"), getTotalUnidentified());
+
   $("studentCount").innerText = students.length;
   $("updatedCount").innerText = counts.updated;
   $("advancedCount").innerText = counts.debt;
@@ -1450,6 +1534,8 @@ function render(){
   if(typeof renderAnalytics === "function"){
     renderAnalytics();
   }
+
+  renderUnidentifiedWidget();
 
   if(typeof renderBulkTable === "function" && _bulkPayVisible){
     renderBulkTable();
@@ -2815,6 +2901,68 @@ function closeStudentViewModal(){
   var modal = $("studentViewModal");
   if (modal) modal.style.display = "none";
 }
+
+function closeModalById(id){
+  var modal = $(id);
+  if (modal) modal.style.display = "none";
+}
+
+function showAddUnidentifiedModal(){
+  var modal = $("addUnidentifiedModal");
+  if (!modal) return;
+  $("ufAmount").value = "";
+  $("ufDate").value = new Date().toISOString().slice(0,10);
+  $("ufNote").value = "";
+  modal.style.display = "flex";
+  $("ufAmount").focus();
+}
+
+function handleAddUnidentifiedFund(){
+  var amount = toNumber($("ufAmount")?.value);
+  var date = $("ufDate")?.value || "";
+  var note = ($("ufNote")?.value || "").trim();
+  if (!amount || amount <= 0) { showToast("Enter a valid amount", "error"); return; }
+  unidentifiedFunds.push({
+    id: "uf_" + Date.now() + "_" + Math.random().toString(36).slice(2,6),
+    amount: amount,
+    date: date || new Date().toISOString().slice(0,10),
+    note: note,
+    createdAt: Date.now()
+  });
+  save();
+  render();
+  closeModalById("addUnidentifiedModal");
+  showToast("Unidentified fund added", "success");
+}
+
+var _assignFundId = null;
+
+function showAssignUnidentifiedModal(fundId){
+  var fund = unidentifiedFunds.find(function(f){ return f.id === fundId; });
+  if (!fund) return;
+  _assignFundId = fundId;
+  $("assignFundInfo").textContent = "Assigning ₱" + toNumber(fund.amount).toLocaleString() + " — remaining: ₱" + toNumber(fund.amount).toLocaleString();
+  var select = $("assignStudentSelect");
+  if (!select) return;
+  select.innerHTML = '<option value="">Select student...</option>';
+  students.forEach(function(s){
+    select.innerHTML += '<option value="' + s.id + '">' + escHtml(s.name) + '</option>';
+  });
+  $("assignAmount").value = toNumber(fund.amount);
+  closeModalById("addUnidentifiedModal");
+  $("assignUnidentifiedModal").style.display = "flex";
+}
+
+function handleAssignUnidentifiedFund(){
+  var fundId = _assignFundId;
+  var studentId = $("assignStudentSelect")?.value;
+  var assignAmount = toNumber($("assignAmount")?.value);
+  if (!studentId) { showToast("Select a student", "error"); return; }
+  assignUnidentifiedFund(fundId, studentId, assignAmount);
+  closeModalById("assignUnidentifiedModal");
+  _assignFundId = null;
+}
+
 function handleStudentCodeSubmit(){
   var code = ($("studentCodeInput")?.value || "").trim().toUpperCase();
   if (!code || code.length !== 5) {
@@ -2963,6 +3111,7 @@ function initFromStorage(){
   skippedWeeks = JSON.parse(localStorage.getItem("skippedWeeks")) || [];
   lastImportedStudentIds = JSON.parse(localStorage.getItem("lastImportedStudentIds")) || [];
   manualWeekOverride = localStorage.getItem("manualWeekOverride") || null;
+  unidentifiedFunds = JSON.parse(localStorage.getItem("unidentifiedFunds")) || [];
   finishInit();
 }
 window.onload = () => {
@@ -3091,6 +3240,8 @@ function finishInit(){
       if($("confirmModal")?.style.display === "flex") closeConfirmModal();
       if($("studentModal")?.style.display === "flex") closeModal();
       if($("receiptModal")?.style.display === "flex") closeReceiptModal();
+      if($("addUnidentifiedModal")?.style.display === "flex") closeModalById("addUnidentifiedModal");
+      if($("assignUnidentifiedModal")?.style.display === "flex") closeModalById("assignUnidentifiedModal");
     }
   }, { passive: true });
 
@@ -3118,6 +3269,12 @@ function finishInit(){
   }, { passive: true });
   $("studentViewModal").addEventListener("click", function(e){
     if(e.target === this) closeStudentViewModal();
+  }, { passive: true });
+  $("addUnidentifiedModal").addEventListener("click", function(e){
+    if(e.target === this) closeModalById("addUnidentifiedModal");
+  }, { passive: true });
+  $("assignUnidentifiedModal").addEventListener("click", function(e){
+    if(e.target === this) closeModalById("assignUnidentifiedModal");
   }, { passive: true });
 
   // Hide skeleton, show content

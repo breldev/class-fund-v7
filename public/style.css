@@ -44,6 +44,7 @@
   --cyan: #22d3ee;
   --teal: #14b8a6;
   --pink: #f472b6;
+  --orange: #fb923c;
 
   /* Gradients */
   --accent: linear-gradient(135deg, #6366f1, #818cf8, #a78bfa);
@@ -3573,11 +3574,14 @@ textarea:focus-visible,
 .dash-icon-collected { background: rgba(52,211,153,.12); color: var(--green); }
 .dash-icon-expected { background: rgba(251,191,36,.12); color: var(--amber); }
 .dash-icon-progress { background: rgba(99,102,241,.12); color: var(--accent-400); }
+.dash-icon-unidentified { background: rgba(251,146,60,.12); color: var(--orange); }
 
 .dash-metric-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .dash-metric-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .4px; }
 .dash-metric-value { font-size: 22px; font-weight: 800; line-height: 1.1; }
 .dash-value-collected { color: var(--green); }
+.dash-value-unidentified { color: var(--orange); }
+.dash-metric-unidentified { --metric-border: rgba(251,146,60,.2); }
 
 /* --- Progress Bar Section --- */
 .dash-progress-section {
@@ -3696,6 +3700,25 @@ textarea:focus-visible,
   color: var(--text);
 }
 .dash-widget-body { padding: 14px 18px 18px; }
+
+/* --- Unidentified Fund Item --- */
+.uf-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.uf-item:last-child { border-bottom: none; }
+.uf-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.uf-amount { font-size: 15px; font-weight: 700; color: var(--orange); }
+.uf-meta { font-size: 11px; color: var(--text-secondary); }
+.uf-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.uf-btn { padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; font-size: 11px; font-weight: 600; transition: opacity .15s; }
+.uf-btn:hover { opacity: .8; }
+.uf-btn-assign { background: rgba(99,102,241,.15); color: var(--accent-400); }
+.uf-btn-delete { background: rgba(239,68,68,.15); color: var(--rose); }
+.uf-empty { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px; }
 
 /* --- Finance Widget --- */
 .dash-finance-row {
