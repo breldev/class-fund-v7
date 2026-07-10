@@ -46,6 +46,8 @@
     const expenses = Array.isArray(data.expenses) ? data.expenses : [];
     const archives = Array.isArray(data.archives) ? data.archives : [];
     const skippedWeeks = Array.isArray(data.skippedWeeks) ? data.skippedWeeks : [];
+    const unidentifiedFunds = Array.isArray(data.unidentifiedFunds) ? data.unidentifiedFunds : [];
+    const totalUnidentified = unidentifiedFunds.reduce((sum, f) => sum + toNumber(f.amount), 0);
 
     const cur = getCurrentWeekFromProvider({ getCurrentWeek: dataProvider.getCurrentWeek.bind(dataProvider) });
     const WEEKLY_FEE = dataProvider.getWeeklyFee ? dataProvider.getWeeklyFee() : 5;
@@ -145,7 +147,7 @@
     const expected = validWeeks * WEEKLY_FEE * students.length;
     const remainingCollection = expected - totalCollected;
     const totalExpenses = expenses.reduce((sum, e) => sum + toNumber(e.amount), 0);
-    const netBalance = totalCollected - totalExpenses;
+    const netBalance = totalCollected + totalUnidentified - totalExpenses;
     const eventAllocated = totalCollected * 0.7;
     const reserveAllocated = totalCollected * 0.3;
     const eventExpenses = expenses.reduce((s, e) => {
@@ -175,6 +177,7 @@
       ["With Remaining Weeks", withRemainingCount],
       ["Total Expenses", totalExpenses],
       ["Net Balance", netBalance],
+      ["Unidentified Funds", totalUnidentified],
       [],
       ["FUND BREAKDOWN"],
       [],
@@ -192,9 +195,9 @@
     wsDashboard['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
       { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
-      { s: { r: 14, c: 0 }, e: { r: 14, c: 1 } },
+      { s: { r: 15, c: 0 }, e: { r: 15, c: 1 } },
     ];
-    const moneyRows = [6, 7, 8, 11, 12, 17, 18, 19, 22, 23, 24];
+    const moneyRows = [6, 7, 8, 11, 12, 13, 18, 19, 20, 23, 24, 25];
     for (const r of moneyRows) {
       const addr = XLSX.utils.encode_cell({ r: r, c: 1 });
       if (wsDashboard[addr] && wsDashboard[addr].t === 'n') wsDashboard[addr].z = CURR;
@@ -202,7 +205,36 @@
     wsDashboard['!cols'] = [{ wch: 24 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, wsDashboard, "Dashboard");
 
-    // ===== Sheet 2: Students =====
+    // ===== Sheet 2: Unidentified Funds =====
+    const unidentifiedRows = unidentifiedFunds.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const unidentifiedSheetRows = unidentifiedRows.map(function(f){
+      return {
+        "Date": safeString(f.date),
+        "Amount": formatMoneyPHP(f.amount),
+        "Note": safeString(f.note),
+        "Assigned To": f.assignedTo ? safeString(f.assignedTo) : "(unassigned)"
+      };
+    });
+    if (unidentifiedSheetRows.length > 0) {
+      unidentifiedSheetRows.push({
+        "Date": "TOTAL",
+        "Amount": formatMoneyPHP(totalUnidentified),
+        "Note": "",
+        "Assigned To": ""
+      });
+    }
+    const wsUnidentified = XLSX.utils.json_to_sheet(unidentifiedSheetRows, { skipHeader: false });
+    wsUnidentified['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 32 }, { wch: 24 }];
+    for (let r = 1; r <= unidentifiedSheetRows.length; r++) {
+      const addr = XLSX.utils.encode_cell({ r: r, c: 1 });
+      if (wsUnidentified[addr] && wsUnidentified[addr].t === 'n') wsUnidentified[addr].z = CURR;
+    }
+    if (unidentifiedSheetRows.length > 0) {
+      wsUnidentified['!autofilter'] = { ref: "A1:D" + unidentifiedSheetRows.length };
+    }
+    XLSX.utils.book_append_sheet(wb, wsUnidentified, "Unidentified Funds");
+
+    // ===== Sheet 4: Students =====
     const wsStudents = XLSX.utils.json_to_sheet(studentRows, { skipHeader: false });
     wsStudents['!cols'] = [
       { wch: 28 },
@@ -225,7 +257,7 @@
     }
     XLSX.utils.book_append_sheet(wb, wsStudents, "Students");
 
-    // ===== Sheet 3: Payments =====
+    // ===== Sheet 5: Payments =====
     const paymentsRows = [];
     for (const s of students) {
       const studentName = safeString(s.name);
@@ -257,7 +289,7 @@
     }
     XLSX.utils.book_append_sheet(wb, wsPayments, "Payments");
 
-    // ===== Sheet 4: Expenses =====
+    // ===== Sheet 6: Expenses =====
     const expensesSorted = expenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     const expenseRows = [];
     let totalExpensesAll = 0;
@@ -296,7 +328,7 @@
     }
     XLSX.utils.book_append_sheet(wb, wsExpenses, "Expenses");
 
-    // ===== Sheet 5: Monthly Archives =====
+    // ===== Sheet 7: Monthly Archives =====
     const archiveRows = [];
     for (const a of (Array.isArray(archives) ? archives : [])) {
       archiveRows.push({
@@ -326,7 +358,7 @@
     }
     XLSX.utils.book_append_sheet(wb, wsArchives, "Monthly Archives");
 
-    // ===== Sheet 6: Report Information =====
+    // ===== Sheet 8: Report Information =====
     const infoAoa = [
       ["Report Information"],
       [],
