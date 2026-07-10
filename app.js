@@ -2093,84 +2093,79 @@ Generated: ${generated}`;
     .catch(()=> alert("Copy failed"));
 }
 
-// ================= NEW FEATURE: ONE-CLICK GC REMINDER =================
+// ================= GC REMINDER =================
 function copyGCReminder(){
+  if(!students || !students.length) return;
 
-  if(!students) return;
+  var cur = getCurrentWeek();
+  var validWeeks = 0;
+  for(var i = 1; i <= cur; i++){
+    if(!isSkipped(i)) validWeeks++;
+  }
+  var fee = weeklyFee;
+  var totalExpected = validWeeks * fee;
+  var totalCollected = 0;
+  var unidentified = getTotalUnidentified();
 
-  const cur = getCurrentWeek();
-  const generated = new Date().toLocaleString();
+  var advanced = [];
+  var paid = [];
+  var unpaid = [];
+  var unpaidTotal = 0;
 
-  let paidNames = [];
-  let unpaidNames = [];
-
-  let updatedCount = 0; // PAID count per rule
-  let debtCount = 0;     // UNPAID count per rule
-
-  const sorted = (students || []).slice().sort((a,b)=>{
-    const na = (a?.name || "").toLowerCase();
-    const nb = (b?.name || "").toLowerCase();
-    if(na < nb) return -1;
-    if(na > nb) return 1;
-    return 0;
+  var sorted = (students || []).slice().sort(function(a,b){
+    var na = (a.name || "").toLowerCase();
+    var nb = (b.name || "").toLowerCase();
+    return na < nb ? -1 : na > nb ? 1 : 0;
   });
 
-  sorted.forEach(s => {
-    const monthDebt = getMonthDebt(s);
+  sorted.forEach(function(s){
+    var totalPaid = getTotal(s);
+    var weeksCovered = Math.floor(totalPaid / fee);
+    var md = getMonthDebt(s);
+    totalCollected += totalPaid;
 
-    if(monthDebt === 0){
-      paidNames.push(s.name);
-      updatedCount++;
-    }else{
-      unpaidNames.push(s.name);
-      debtCount++;
+    if (md === 0 && totalPaid > validWeeks * fee) {
+      advanced.push({ name: s.name, totalPaid: totalPaid, weeksCovered: weeksCovered });
+    } else if (md === 0) {
+      paid.push({ name: s.name, totalPaid: totalPaid, weeksCovered: weeksCovered });
+    } else {
+      unpaid.push({ name: s.name, debt: md, weeksCovered: weeksCovered });
+      unpaidTotal += md;
     }
   });
 
-  // Ensure alphabetical ordering within each group (rule)
-  paidNames = paidNames.slice().sort((a,b)=>{
-    const na = (a || "").toLowerCase();
-    const nb = (b || "").toLowerCase();
-    if(na < nb) return -1;
-    if(na > nb) return 1;
-    return 0;
-  });
+  function fmt(arr, fn){
+    if (!arr.length) return "  (none)";
+    return arr.map(function(item, idx){ return "  " + (idx + 1) + ". " + fn(item); }).join("\n");
+  }
 
-  unpaidNames = unpaidNames.slice().sort((a,b)=>{
-    const na = (a || "").toLowerCase();
-    const nb = (b || "").toLowerCase();
-    if(na < nb) return -1;
-    if(na > nb) return 1;
-    return 0;
-  });
+  var pct = totalExpected > 0 ? Math.round(totalCollected / totalExpected * 100) : 0;
 
-  const paidList = paidNames.length
-    ? paidNames.map(n => `- ${n}`).join("\n")
-    : "- (None)";
+  var lines = [];
+  lines.push("CLASS FUND REMINDER");
+  lines.push("");
+  lines.push("Week " + cur + " of " + validWeeks + " — PHP " + fee + "/week");
+  lines.push("");
+  lines.push("COLLECTION SUMMARY");
+  lines.push("  Collected: PHP " + totalCollected.toLocaleString() + " / PHP " + totalExpected.toLocaleString() + " (" + pct + "%)");
+  if (unidentified > 0) lines.push("  Unidentified: PHP " + unidentified.toLocaleString());
+  lines.push("");
+  lines.push("ADVANCED (" + advanced.length + ") — paid more than expected");
+  lines.push(fmt(advanced, function(s){ return s.name + " — PHP " + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  lines.push("");
+  lines.push("PAID (" + paid.length + ") — fully paid");
+  lines.push(fmt(paid, function(s){ return s.name + " — PHP " + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  lines.push("");
+  lines.push("UNPAID (" + unpaid.length + ") — PHP " + unpaidTotal.toLocaleString() + " total owed");
+  lines.push(fmt(unpaid, function(s){ return s.name + " — owe PHP " + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  lines.push("");
+  lines.push("Please settle your class fund contribution as soon as possible.");
+  lines.push("");
+  lines.push("Thank you!");
 
-  const unpaidList = unpaidNames.length
-    ? unpaidNames.map(n => `- ${n}`).join("\n")
-    : "- (None)";
-
-  const reminder = `📢 CLASS FUND REMINDER
-
-Week ${cur} Collection
-
-✅ PAID (${updatedCount})
-${paidList}
-
-🔴 UNPAID (${debtCount})
-${unpaidList}
-
-Please settle your class fund contribution as soon as possible.
-
-Thank you! 😊`;
-
-  navigator.clipboard.writeText(reminder)
-    .then(()=>{
-      showToast("GC reminder copied!", "success");
-    })
-    .catch(()=> alert("Copy failed"));
+  navigator.clipboard.writeText(lines.join("\n"))
+    .then(function(){ showToast("GC reminder copied!", "success"); })
+    .catch(function(){ alert("Copy failed"); });
 }
 
 
