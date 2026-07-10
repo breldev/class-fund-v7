@@ -1319,12 +1319,13 @@ function render(){
   pageSlice.forEach(function(s){ pageIdSet[s.id] = true; });
 
   var groupLabels = {
+    advanced: "⭐ Advanced",
     updated: "🟢 Updated",
     debt: "🔴 With Debt",
     none: "⚪ No Payments"
   };
 
-  var groupOrder = ["updated", "debt", "none"];
+  var groupOrder = ["advanced", "updated", "debt", "none"];
 
   // Update sort indicators
   var headerCells = document.querySelectorAll("#page-students .sort-header th");
@@ -1483,9 +1484,18 @@ function render(){
 
   if ($("dashUnidentified")) animateNumber($("dashUnidentified"), getTotalUnidentified());
 
+  var dashUpdated = 0, dashDebt = 0;
+  students.forEach(function(s){
+    var md = getMonthDebt(s);
+    var pc = (s.payments||[]).length;
+    if (!isStudentAdvanced(s)) {
+      if(pc > 0 && md === 0) dashUpdated++;
+      else if(md > 0) dashDebt++;
+    }
+  });
   $("studentCount").innerText = students.length;
-  $("updatedCount").innerText = counts.updated;
-  $("advancedCount").innerText = counts.debt;
+  $("updatedCount").innerText = dashUpdated;
+  $("advancedCount").innerText = dashDebt;
 
   var pct = expected > 0 ? (monthTotalCollected / expected) * 100 : 0;
   var pctEl = $("dashProgressPct");
@@ -1508,8 +1518,9 @@ function render(){
     if(e.fund === "reserve") return s + toNumber(e.amount);
     return s;
   }, 0);
-  const grossEventFund = totalCollected * 0.70;
-  const grossReserveFund = totalCollected * 0.30;
+  var allCollected = getTotalCollected();
+  const grossEventFund = allCollected * 0.70;
+  const grossReserveFund = allCollected * 0.30;
   const eventAvailable = Math.max(0, grossEventFund - eventExpensesSum);
   const reserveAvailable = Math.max(0, grossReserveFund - reserveExpensesSum);
 
