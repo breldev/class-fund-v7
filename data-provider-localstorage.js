@@ -10,6 +10,7 @@
     let archives = [];
     let skippedWeeks = [];
     let startDate = null;
+    let unidentifiedFunds = [];
 
     try {
       students = JSON.parse(localStorage.getItem("students")) || [];
@@ -35,12 +36,17 @@
       startDate = localStorage.getItem("startDate") || null;
     } catch {}
 
+    try {
+      unidentifiedFunds = JSON.parse(localStorage.getItem("unidentifiedFunds")) || [];
+    } catch {}
+
     return {
       students,
       paymentHistory,
       expenses,
       archives,
       skippedWeeks,
+      unidentifiedFunds,
       startDate,
     };
   }
