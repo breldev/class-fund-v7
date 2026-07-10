@@ -2150,13 +2150,13 @@ function copyGCReminder(){
   lines.push("  Collected: PHP " + totalCollected.toLocaleString() + " / PHP " + totalExpected.toLocaleString() + " (" + pct + "%)");
   if (unidentified > 0) lines.push("  Unidentified: PHP " + unidentified.toLocaleString());
   lines.push("");
-  lines.push("ADVANCED (" + advanced.length + ") — paid more than expected");
+  lines.push("⭐ ADVANCED (" + advanced.length + ") — paid more than expected");
   lines.push(fmt(advanced, function(s){ return s.name + " — PHP " + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   lines.push("");
-  lines.push("PAID (" + paid.length + ") — fully paid");
+  lines.push("✅ PAID (" + paid.length + ") — fully paid");
   lines.push(fmt(paid, function(s){ return s.name + " — PHP " + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   lines.push("");
-  lines.push("UNPAID (" + unpaid.length + ") — PHP " + unpaidTotal.toLocaleString() + " total owed");
+  lines.push("🔴 UNPAID (" + unpaid.length + ") — PHP " + unpaidTotal.toLocaleString() + " total owed");
   lines.push(fmt(unpaid, function(s){ return s.name + " — owe PHP " + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   lines.push("");
   lines.push("Please settle your class fund contribution as soon as possible.");
