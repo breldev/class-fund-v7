@@ -142,6 +142,19 @@
       }
     }
 
+    function centerAll(ws) {
+      if (!ws['!ref']) return;
+      var range = XLSX.utils.decode_range(ws['!ref']);
+      for (var r = range.s.r; r <= range.e.r; r++) {
+        for (var c = range.s.c; c <= range.e.c; c++) {
+          var addr = XLSX.utils.encode_cell({ r: r, c: c });
+          if (ws[addr]) {
+            ws[addr].s = { alignment: { horizontal: 'center', vertical: 'center' } };
+          }
+        }
+      }
+    }
+
     // ===== Sheet 1: Dashboard =====
     const totalCollected = totalPaidAll;
     const expected = validWeeks * WEEKLY_FEE * students.length;
@@ -203,6 +216,7 @@
       if (wsDashboard[addr] && wsDashboard[addr].t === 'n') wsDashboard[addr].z = CURR;
     }
     wsDashboard['!cols'] = [{ wch: 24 }, { wch: 18 }];
+    centerAll(wsDashboard);
     XLSX.utils.book_append_sheet(wb, wsDashboard, "Dashboard");
 
     // ===== Sheet 2: Unidentified Funds =====
@@ -232,6 +246,7 @@
     if (unidentifiedSheetRows.length > 0) {
       wsUnidentified['!autofilter'] = { ref: "A1:D" + unidentifiedSheetRows.length };
     }
+    centerAll(wsUnidentified);
     XLSX.utils.book_append_sheet(wb, wsUnidentified, "Unidentified Funds");
 
     // ===== Sheet 4: Students =====
@@ -255,6 +270,7 @@
     if (studentRows.length > 1) {
       wsStudents['!autofilter'] = { ref: "A1:H" + studentRows.length };
     }
+    centerAll(wsStudents);
     XLSX.utils.book_append_sheet(wb, wsStudents, "Students");
 
     // ===== Sheet 5: Payments =====
@@ -287,6 +303,7 @@
     if (paymentsRows.length > 0) {
       wsPayments['!autofilter'] = { ref: "A1:D" + paymentsRows.length };
     }
+    centerAll(wsPayments);
     XLSX.utils.book_append_sheet(wb, wsPayments, "Payments");
 
     // ===== Sheet 6: Expenses =====
@@ -326,6 +343,7 @@
     if (expenseRows.length > 0) {
       wsExpenses['!autofilter'] = { ref: "A1:D" + expenseRows.length };
     }
+    centerAll(wsExpenses);
     XLSX.utils.book_append_sheet(wb, wsExpenses, "Expenses");
 
     // ===== Sheet 7: Monthly Archives =====
@@ -356,6 +374,7 @@
     if (archiveRows.length > 0) {
       wsArchives['!autofilter'] = { ref: "A1:H" + archiveRows.length };
     }
+    centerAll(wsArchives);
     XLSX.utils.book_append_sheet(wb, wsArchives, "Monthly Archives");
 
     // ===== Sheet 8: Report Information =====
@@ -378,6 +397,7 @@
       { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }
     ];
     wsInfo['!cols'] = [{ wch: 18 }, { wch: 40 }];
+    centerAll(wsInfo);
     XLSX.utils.book_append_sheet(wb, wsInfo, "Report Information");
 
     // ===== Filename =====
