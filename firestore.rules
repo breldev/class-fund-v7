@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Class fund data — any logged-in user can read/write
+    match /classFund/{classId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Class metadata — admin only
+    match /_classes/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email == 'brailekenteusebio@gmail.com';
+    }
+
+    // Pending registrations — anyone can read, logged-in can create, admin can manage
+    match /_pending/{document=**} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && request.auth.token.email == 'brailekenteusebio@gmail.com';
+    }
+
+    // Global config — logged-in can read, admin can write
+    match /_config/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'brailekenteusebio@gmail.com';
+    }
+  }
+}
