@@ -3662,9 +3662,9 @@ function exportSelectedStudents(){
   var report = "Selected Students Report\n\n";
   sel.forEach(function(s){
     var total = getTotal(s);
-    var w = getMonthWeekCount ? getMonthWeekCount() : cur;
     var debt = getMonthDebt ? getMonthDebt(s) : 0;
-    report += s.name + " - Paid: ₱" + total + " - Debt: ₱" + debt + "\n";
+    var label = debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
+    report += s.name + " - Status: " + label + " - Paid: ₱" + total + " - Debt: ₱" + debt + "\n";
   });
   navigator.clipboard.writeText(report).then(function(){ showToast("Copied " + sel.length + " students", "success"); });
 }
@@ -3676,7 +3676,7 @@ function exportSelectedCSV(){
   sel.forEach(function(s){
     var total = getTotal(s);
     var debt = getMonthDebt ? getMonthDebt(s) : 0;
-    var status = debt > 0 ? "Debt" : "OK";
+    var status = debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
     csv += '"' + s.name + '",' + total + ',' + debt + ',' + status + '\n';
   });
   var blob = new Blob([csv], {type:"text/csv"});
