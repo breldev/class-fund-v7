@@ -1019,7 +1019,7 @@ function renderExpenses(){
   if($("expensesPageTotal")) animateNumber($("expensesPageTotal"), total);
   if($("expensesPageBalance")) animateNumber($("expensesPageBalance"), balance);
 
-  const collected = getTotalCollected();
+  const collected = getTotalCollected() + getTotalUnidentified();
   const eventExpTotal = expenses.reduce((s,e) => {
     if(e.fund === "both") return s + toNumber(e.eventAmount || 0);
     if((e.fund || "event") === "event") return s + toNumber(e.amount);
