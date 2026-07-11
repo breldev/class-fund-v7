@@ -2180,6 +2180,7 @@ function exportBackup(){
     paymentHistory: paymentHistory || [],
     expenses: expenses || [],
     currentMonth: localStorage.getItem("currentMonth") || null,
+    unidentifiedFunds: unidentifiedFunds || [],
     exportedAt: new Date().toISOString(),
     app: "class-fund-auditor"
   };
@@ -2226,6 +2227,7 @@ function importBackup(event){
         archives = Array.isArray(data.archives) ? data.archives : [];
         paymentHistory = Array.isArray(data.paymentHistory) ? data.paymentHistory : [];
         expenses = Array.isArray(data.expenses) ? data.expenses : [];
+        unidentifiedFunds = Array.isArray(data.unidentifiedFunds) ? data.unidentifiedFunds : [];
         lastImportedStudentIds = [];
         manualWeekOverride = data.manualWeekOverride || null;
         localStorage.setItem("students", JSON.stringify(students));
@@ -2235,6 +2237,7 @@ function importBackup(event){
         localStorage.setItem("archives", JSON.stringify(archives));
         localStorage.setItem("paymentHistory", JSON.stringify(paymentHistory));
         localStorage.setItem("expenses", JSON.stringify(expenses));
+        localStorage.setItem("unidentifiedFunds", JSON.stringify(unidentifiedFunds));
         localStorage.setItem("lastImportedStudentIds", JSON.stringify([]));
         if(data.currentMonth){
           localStorage.setItem("currentMonth", data.currentMonth);
