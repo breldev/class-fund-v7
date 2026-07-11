@@ -127,6 +127,7 @@ var _expenseCategoryFilter = "all";
 var _expenseDateFrom = "", _expenseDateTo = "";
 var _page = 0;
 var _pageSize = 25;
+var _filteredStudents = [];
 var _lastSaveTime = Date.now();
 var _autoBackupDate = localStorage.getItem("autoBackupDate") || "";
 var _adminMode = false;
@@ -1277,6 +1278,7 @@ function render(){
       return va < vb ? -_sortDir : va > vb ? _sortDir : 0;
     });
   }
+  _filteredStudents = filtered;
 
   if(!filtered.length){
     tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted);font-size:14px;">' +
@@ -3642,7 +3644,7 @@ function toggleSelectStudent(id){
   render();
 }
 function selectAllStudents(){
-  students.forEach(function(s){ _selectedStudentIds.add(s.id); });
+  _filteredStudents.forEach(function(s){ _selectedStudentIds.add(s.id); });
   render();
 }
 function clearSelection(){
