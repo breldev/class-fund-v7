@@ -1472,38 +1472,45 @@ function render(){
   }
 
   var monthWeeksCount = (typeof getMonthWeekCount === "function") ? getMonthWeekCount() : cur;
-  const expected =
+  const monthExpected =
   monthWeeksCount * weeklyFee * students.length;
 
   var monthTotalCollected = students.reduce(function(sum, s){ return sum + getMonthPayments(s); }, 0);
 
+  var allTimeCollected = getTotalCollected();
+  var allTimeExpected = validWeeks * weeklyFee * students.length;
+
   // ================= EXISTING DASHBOARD =================
-  animateNumber($("collected"), monthTotalCollected);
-  animateNumber($("expected"), expected);
-  animateNumber($("remaining"), Math.max(0,expected-monthTotalCollected));
+  animateNumber($("collected"), allTimeCollected);
+  animateNumber($("expected"), allTimeExpected);
+  animateNumber($("remaining"), Math.max(0, allTimeExpected - allTimeCollected));
 
   if ($("dashUnidentified")) animateNumber($("dashUnidentified"), getTotalUnidentified());
 
-  var dashUpdated = 0, dashDebt = 0;
+  var dashUpdated = 0, dashDebt = 0, dashAdvanced = 0;
   students.forEach(function(s){
     var md = getMonthDebt(s);
     var pc = (s.payments||[]).length;
-    if (!isStudentAdvanced(s)) {
-      if(pc > 0 && md === 0) dashUpdated++;
-      else if(md > 0) dashDebt++;
+    if (isStudentAdvanced(s)) {
+      dashAdvanced++;
+    } else if(pc > 0 && md === 0) {
+      dashUpdated++;
+    } else if(md > 0) {
+      dashDebt++;
     }
   });
   $("studentCount").innerText = students.length;
   $("updatedCount").innerText = dashUpdated;
-  $("advancedCount").innerText = dashDebt;
+  $("advancedCount").innerText = dashAdvanced;
 
-  var pct = expected > 0 ? (monthTotalCollected / expected) * 100 : 0;
+  var pct = monthExpected > 0 ? (monthTotalCollected / monthExpected) * 100 : 0;
   var pctEl = $("dashProgressPct");
   if(pctEl) pctEl.textContent = pct.toFixed(1) + "%";
   var fillEl = $("progressFill");
   if(fillEl) fillEl.style.width = pct + "%";
   var labelEl = $("dashProgressLabel");
-  if(labelEl) labelEl.textContent = "PHP " + monthTotalCollected.toFixed(2) + " / PHP " + expected.toFixed(2);
+  if(labelEl) labelEl.textContent = "This month: PHP " + monthTotalCollected.toFixed(2) + " / PHP " + monthExpected.toFixed(2);
+  var weekEl = $("dashWeekDisplay");
   var weekEl = $("dashWeekDisplay");
   if(weekEl) weekEl.textContent = getCurrentWeek();
 
@@ -1958,9 +1965,9 @@ CLASS FUND REPORT
 Current Week: ${cur}
 Students: ${students.length}
 
-Total Collected: ₱${totalCollected}
-Expected Collection: ₱${expected}
-Remaining Collection: ₱${remainingAfterCollected}${totalUnidentified > 0 ? "\nUnidentified Funds: ₱" + totalUnidentified : ""}
+Total Collected (All Time): ₱${totalCollected}
+Expected Collection (All Time): ₱${expected}
+Remaining Collection (All Time): ₱${remainingAfterCollected}${totalUnidentified > 0 ? "\nUnidentified Funds: ₱" + totalUnidentified : ""}
 
 ⭐ Advanced: ${advancedCount}
 🟢 Fully Updated: ${updatedCount}
