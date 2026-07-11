@@ -1279,7 +1279,7 @@ function render(){
   }
 
   if(!filtered.length){
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--muted);font-size:14px;">' +
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted);font-size:14px;">' +
       (students.length ? 'No students match "' + search + '".' : 'No students yet. Add one above or import a list.') +
       '</td></tr>';
     var pagEl = document.querySelector(".pag");
@@ -1344,7 +1344,7 @@ function render(){
     var group = groups[key].filter(function(s){ return pageIdSet[s.id]; });
     if(!group.length) return;
     html +=
-      '<tr class="group-divider"><td colspan="10">' + groupLabels[key] + " (" + group.length + ")</td></tr>";
+      '<tr class="group-divider"><td colspan="11">' + groupLabels[key] + " (" + group.length + ")</td></tr>";
 
     group.forEach(function(s){
       var total = getTotal(s);
