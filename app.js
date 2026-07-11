@@ -1242,7 +1242,7 @@ function render(){
 
   let totalCollected = 0;
   let totalDebtOwed = 0;
-  var counts = { total: students.length, updated: 0, debt: 0, advanced: 0, none: 0 };
+  var counts = { total: 0, updated: 0, debt: 0, advanced: 0, none: 0 };
 
   var filtered = students.filter(function(s){
     return (s.name||"").toLowerCase().includes(search);
@@ -1299,6 +1299,7 @@ function render(){
     totalCollected += getTotal(s);
     totalDebtOwed += md;
   });
+  counts.total = filtered.length;
 
   // Update stats bar
   animateNumberRaw($("statTotal"), counts.total, "");
