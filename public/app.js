@@ -1237,7 +1237,7 @@ function render(){
 
   tbody.innerHTML = "";
 
-  const search = ($("studentSearch")?.value || $("searchInput")?.value || "").toLowerCase();
+  const search = ($("studentSearch")?.value || "").toLowerCase();
   const cur = getCurrentWeek();
 
   let totalCollected = 0;
@@ -1504,6 +1504,7 @@ function render(){
   $("updatedCount").innerText = dashUpdated;
   if ($("debtCount")) $("debtCount").innerText = dashDebt;
   $("advancedCount").innerText = dashAdvanced;
+  if ($("insightWeeklyFee")) $("insightWeeklyFee").textContent = "PHP " + weeklyFee;
 
   var pct = monthExpected > 0 ? (monthTotalCollected / monthExpected) * 100 : 0;
   var pctEl = $("dashProgressPct");
@@ -1512,7 +1513,6 @@ function render(){
   if(fillEl) fillEl.style.width = pct + "%";
   var labelEl = $("dashProgressLabel");
   if(labelEl) labelEl.textContent = "This month: PHP " + monthTotalCollected.toFixed(2) + " / PHP " + monthExpected.toFixed(2);
-  var weekEl = $("dashWeekDisplay");
   var weekEl = $("dashWeekDisplay");
   if(weekEl) weekEl.textContent = getCurrentWeek();
 
@@ -3223,7 +3223,6 @@ function finishInit(){
       sidebarRole.textContent = _isAdmin ? "Admin" : "Auditor";
     }
     document.title = classId.replace(/-/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); }) + " — Class Fund";
-    console.log("Class ID:", classId);
   }
 
   // Restore theme & preferences
@@ -4183,6 +4182,4 @@ function showConfetti(){
     showToast("You are offline - changes will sync when connection returns", "info");
   });
 })();
-
-console.log("Students Loaded:", students);
 
