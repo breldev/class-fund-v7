@@ -3585,6 +3585,9 @@ textarea:focus-visible,
 .dash-value-collected { color: var(--green); }
 .dash-value-unidentified { color: var(--orange); }
 .dash-metric-unidentified { --metric-border: rgba(251,146,60,.2); }
+.dash-icon-expenses { background: rgba(239,68,68,.12); color: var(--red); }
+.dash-value-expenses { color: var(--red); }
+.dash-metric-expenses { --metric-border: rgba(239,68,68,.2); }
 
 /* --- Progress Bar Section --- */
 .dash-progress-section {

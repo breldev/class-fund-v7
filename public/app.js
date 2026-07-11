@@ -1486,6 +1486,7 @@ function render(){
   animateNumber($("remaining"), Math.max(0, allTimeExpected - allTimeCollected));
 
   if ($("dashUnidentified")) animateNumber($("dashUnidentified"), getTotalUnidentified());
+  if ($("dashTotalExpenses")) animateNumber($("dashTotalExpenses"), getTotalExpenses());
 
   var dashUpdated = 0, dashDebt = 0, dashAdvanced = 0;
   students.forEach(function(s){
