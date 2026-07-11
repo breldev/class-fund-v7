@@ -1737,11 +1737,13 @@ function renderBulkTable(){
       '</tr></thead>' +
       '<tbody>' + html + '</tbody>' +
     '</table></div>';
+  var fillBtn = $("bulkFillAllBtn");
+  if(fillBtn) fillBtn.textContent = "Set All to ₱" + (toNumber($("bulkDefaultAmount")?.value) || weeklyFee);
 }
 
 function bulkFillAll(){
   var val = toNumber($("bulkDefaultAmount")?.value) || weeklyFee;
-  document.querySelectorAll(".compact-input").forEach(function(inp){ inp.value = val; });
+  document.querySelectorAll("#bulkTableContainer .compact-input").forEach(function(inp){ inp.value = val; });
 }
 
 function bulkToggleAll(checked){
@@ -1807,7 +1809,7 @@ function bulkPayAll(){
 }
 
 function bulkClearAll(){
-  document.querySelectorAll(".compact-input").forEach(function(inp){ inp.value = ""; });
+  document.querySelectorAll("#bulkTableContainer .compact-input").forEach(function(inp){ inp.value = ""; });
   document.querySelectorAll("#page-payments .bulk-check-input").forEach(function(cb){ cb.checked = false; });
 }
 
