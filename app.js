@@ -1269,7 +1269,7 @@ function render(){
       switch(_sortCol){
         case "name": va = (a.name||"").toLowerCase(); vb = (b.name||"").toLowerCase(); break;
         case "paid": va = ta; vb = tb; break;
-        case "weeks": va = (a.payments||[]).length; vb = (b.payments||[]).length; break;
+        case "month": va = getMonthPayments(a); vb = getMonthPayments(b); break;
         case "debt": va = da; vb = db; break;
         case "status": va = da > 0 ? 0 : 1; vb = db > 0 ? 0 : 1; break;
         default: return 0;
