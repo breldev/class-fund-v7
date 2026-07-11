@@ -161,8 +161,9 @@
     const remainingCollection = expected - totalCollected;
     const totalExpenses = expenses.reduce((sum, e) => sum + toNumber(e.amount), 0);
     const netBalance = totalCollected + totalUnidentified - totalExpenses;
-    const eventAllocated = totalCollected * 0.7;
-    const reserveAllocated = totalCollected * 0.3;
+    const totalForDistribution = totalCollected + totalUnidentified;
+    const eventAllocated = totalForDistribution * 0.7;
+    const reserveAllocated = totalForDistribution * 0.3;
     const eventExpenses = expenses.reduce((s, e) => {
       if (e.fund === "both") return s + toNumber(e.eventAmount || 0);
       return s + (e.fund === "reserve" ? 0 : toNumber(e.amount));

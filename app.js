@@ -1526,7 +1526,7 @@ function render(){
     if(e.fund === "reserve") return s + toNumber(e.amount);
     return s;
   }, 0);
-  var allCollected = getTotalCollected();
+  var allCollected = getTotalCollected() + getTotalUnidentified();
   const grossEventFund = allCollected * 0.70;
   const grossReserveFund = allCollected * 0.30;
   const eventAvailable = Math.max(0, grossEventFund - eventExpensesSum);
@@ -1931,8 +1931,9 @@ function copyReport(){
     if(e.fund === "reserve") return s + toNumber(e.amount);
     return s;
   }, 0);
-  const grossEventFund = totalCollected * 0.70;
-  const grossReserveFund = totalCollected * 0.30;
+  const totalForDistribution = totalCollected + getTotalUnidentified();
+  const grossEventFund = totalForDistribution * 0.70;
+  const grossReserveFund = totalForDistribution * 0.30;
   const eventAvailable = Math.max(0, grossEventFund - eventExpensesSum);
   const reserveAvailable = Math.max(0, grossReserveFund - reserveExpensesSum);
 
@@ -2446,6 +2447,8 @@ function saveArchive(){
     (sum,s)=>sum+getTotal(s),
     0
   );
+  const totalUnidentified = getTotalUnidentified();
+  const totalForDistribution = totalCollected + totalUnidentified;
 
   const eventExpensesSum = expenses.reduce((s,e) => {
     if(e.fund === "both") return s + toNumber(e.eventAmount || 0);
@@ -2461,8 +2464,9 @@ function saveArchive(){
   const archive = {
     month: monthKey,
     collected: totalCollected,
-    eventFund: totalCollected * 0.70,
-    reserveFund: totalCollected * 0.30,
+    unidentified: totalUnidentified,
+    eventFund: totalForDistribution * 0.70,
+    reserveFund: totalForDistribution * 0.30,
     eventExpenses: eventExpensesSum,
     reserveExpenses: reserveExpensesSum,
     students: students.length,
@@ -2532,8 +2536,9 @@ function renderArchive(){
   .slice()
   .reverse()
   .map(a=>{
-    const eventAvailable = Math.max(0, a.collected * 0.70 - (a.eventExpenses || 0));
-    const reserveAvailable = Math.max(0, a.collected * 0.30 - (a.reserveExpenses || 0));
+    const archiveTotal = a.collected + (a.unidentified || 0);
+    const eventAvailable = Math.max(0, archiveTotal * 0.70 - (a.eventExpenses || 0));
+    const reserveAvailable = Math.max(0, archiveTotal * 0.30 - (a.reserveExpenses || 0));
 
     return `
       <div class="hero-card" style="padding:24px;margin-bottom:0">
