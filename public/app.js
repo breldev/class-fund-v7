@@ -1502,6 +1502,7 @@ function render(){
   });
   $("studentCount").innerText = students.length;
   $("updatedCount").innerText = dashUpdated;
+  if ($("debtCount")) $("debtCount").innerText = dashDebt;
   $("advancedCount").innerText = dashAdvanced;
 
   var pct = monthExpected > 0 ? (monthTotalCollected / monthExpected) * 100 : 0;
