@@ -1849,7 +1849,6 @@ function copyReport(){
     if(!isSkipped(i)) validWeeks++;
   }
   const expected = validWeeks * weeklyFee * students.length;
-  const remaining = expected - totalCollected;
 
   // Sort students alphabetically
   const sorted = (students || []).slice().sort((a,b)=>{
@@ -1861,6 +1860,7 @@ function copyReport(){
   });
 
   let updatedCount = 0;
+  let advancedCount = 0;
   let debtCount = 0;
 
   const currentMonth = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
@@ -1882,6 +1882,10 @@ function copyReport(){
       statusIcon = "🔴";
       statusLabel = "WITH DEBT";
       debtCount++;
+    }else if(totalPaid > validWeeks * weeklyFee){
+      statusIcon = "⭐";
+      statusLabel = "ADVANCED";
+      advancedCount++;
     }else{
       statusIcon = "🟢";
       statusLabel = "UPDATED";
@@ -1946,6 +1950,8 @@ function copyReport(){
     ? expensesSectionParts.join("\r\n")
     : "• No expenses recorded";
 
+  const totalUnidentified = getTotalUnidentified();
+
   const report = `
 CLASS FUND REPORT
 
@@ -1954,14 +1960,16 @@ Students: ${students.length}
 
 Total Collected: ₱${totalCollected}
 Expected Collection: ₱${expected}
-Remaining Collection: ₱${remainingAfterCollected}
+Remaining Collection: ₱${remainingAfterCollected}${totalUnidentified > 0 ? "\nUnidentified Funds: ₱" + totalUnidentified : ""}
 
+⭐ Advanced: ${advancedCount}
 🟢 Fully Updated: ${updatedCount}
 🔴 With Remaining Weeks: ${debtCount}
 
 ${studentStatusSection}
 
 SUMMARY
+⭐ Advanced: ${advancedCount}
 🟢 Fully Updated: ${updatedCount}
 🔴 With Remaining Weeks: ${debtCount}
 
@@ -2053,6 +2061,7 @@ function copyShortReport(){
   });
 
   let updatedCount = 0;
+  let advancedCount = 0;
   let debtCount = 0;
 
   sorted.forEach(s => {
@@ -2063,6 +2072,8 @@ function copyShortReport(){
 
     if(monthDebt > 0){
       debtCount++;
+    }else if(totalPaid > validWeeks * weeklyFee){
+      advancedCount++;
     }else{
       updatedCount++;
     }
@@ -2070,21 +2081,21 @@ function copyShortReport(){
 
   const remaining = expected - totalCollected;
 
+  const totalUnidentified = getTotalUnidentified();
   const totalExpenses = getTotalExpenses();
-  const netBalance = totalCollected + getTotalUnidentified() - totalExpenses;
+  const netBalance = totalCollected + totalUnidentified - totalExpenses;
 
-  const report = `📊 CLASS FUND UPDATE
-Week: ${cur}
+  var summaryParts = ["💰 Collected (Total): ₱" + totalCollected, "📉 Remaining (Total): ₱" + remaining];
+  if (totalUnidentified > 0) summaryParts.push("❓ Unidentified Funds: ₱" + totalUnidentified);
+  summaryParts.push("💸 Expenses: ₱" + totalExpenses, "🏦 Net Balance: ₱" + netBalance);
 
-🟢 Paid This Month: ${updatedCount}
-🔴 With Debt This Month: ${debtCount}
-
-💰 Collected (Total): ₱${totalCollected}
-📉 Remaining (Total): ₱${remaining}
-💸 Expenses: ₱${totalExpenses}
-🏦 Net Balance: ₱${netBalance}
-
-Generated: ${generated}`;
+  const report = "📊 CLASS FUND UPDATE\n" +
+"Week: " + cur + "\n\n" +
+"⭐ Advanced: " + advancedCount + "\n" +
+"🟢 Paid This Month: " + updatedCount + "\n" +
+"🔴 With Debt This Month: " + debtCount + "\n\n" +
+summaryParts.join("\n") + "\n\n" +
+"Generated: " + generated;
 
   navigator.clipboard.writeText(report)
     .then(()=>{
@@ -2103,7 +2114,7 @@ function copyGCReminder(){
     if(!isSkipped(i)) validWeeks++;
   }
   var fee = weeklyFee;
-  var totalExpected = validWeeks * fee;
+  var totalExpected = validWeeks * fee * students.length;
   var totalCollected = 0;
   var unidentified = getTotalUnidentified();
 
