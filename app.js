@@ -772,6 +772,7 @@ function addPayment(){
 
   s.payments.push({
     amount,
+    type: "Cash",
     date: now.toLocaleString(),
     month: now.toLocaleString("en-US",{
       month:"long",
@@ -832,10 +833,13 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
 
   if (!student.payments) student.payments = [];
   var week = getCurrentWeek();
+  var now = new Date();
   student.payments.push({
     week: week,
     amount: assignAmount,
-    date: new Date().toISOString().slice(0,10)
+    type: "Cash",
+    date: now.toLocaleString(),
+    month: now.toLocaleString("en-US", {month: "long", year: "numeric"})
   });
 
   var remaining = fund.amount - assignAmount;
