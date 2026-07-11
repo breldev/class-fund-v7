@@ -1355,8 +1355,10 @@ function render(){
       var payCount = (s.payments||[]).length;
       rowNum++;
 
-      var statusClass = monthDebt > 0 ? "debt" : "ok";
-      var statusLabel = monthDebt > 0 ? "🔴 DEBT" : "🟢 OK";
+      var statusClass, statusLabel;
+      if(isStudentAdvanced(s)){ statusClass = "advanced"; statusLabel = "⭐ ADVANCED"; }
+      else if(monthDebt > 0){ statusClass = "debt"; statusLabel = "🔴 DEBT"; }
+      else { statusClass = "ok"; statusLabel = "🟢 OK"; }
 
       // Progress bar (weeks covered vs current)
       var weeks = Math.floor(total / weeklyFee);
@@ -2711,8 +2713,10 @@ function viewStudent(id){
   var pct = cur > 0 ? Math.round((weeks / cur) * 100) : 0;
   var pctCap = Math.min(pct, 100);
 
-  var statusClass = monthDebt > 0 ? "debt" : "ok";
-  var statusLabel = monthDebt > 0 ? "🔴 DEBT" : "🟢 OK";
+  var statusClass, statusLabel;
+  if(isStudentAdvanced(student)){ statusClass = "advanced"; statusLabel = "⭐ ADVANCED"; }
+  else if(monthDebt > 0){ statusClass = "debt"; statusLabel = "🔴 DEBT"; }
+  else { statusClass = "ok"; statusLabel = "🟢 OK"; }
 
   // Student info header
   $("studentInfo").innerHTML =
