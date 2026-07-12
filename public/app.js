@@ -6,6 +6,9 @@ JSON.parse(
 let archives =
 JSON.parse(localStorage.getItem("archives")) || [];
 
+let archiveTrash =
+JSON.parse(localStorage.getItem("archiveTrash")) || [];
+
 let expenses =
 JSON.parse(localStorage.getItem("expenses")) || [];
 
@@ -19,14 +22,14 @@ function renderUnidentifiedWidget(){
   }
   var html = "";
   unidentifiedFunds.forEach(function(f){
-    html += '<div class="uf-item">' +
+    html += '<div class="uf-item" data-ufid="' + f.id + '">' +
       '<div class="uf-left">' +
         '<span class="uf-amount">₱' + toNumber(f.amount).toLocaleString() + '</span>' +
         '<span class="uf-meta">' + escHtml(f.date || "") + (f.note ? " — " + escHtml(f.note) : "") + '</span>' +
       '</div>' +
       '<div class="uf-actions">' +
-        '<button class="uf-btn uf-btn-assign" onclick="showAssignUnidentifiedModal(\'' + f.id + '\')">Assign</button>' +
-        '<button class="uf-btn uf-btn-delete" onclick="deleteUnidentifiedFund(\'' + f.id + '\')">Delete</button>' +
+        '<button class="uf-btn uf-btn-assign">Assign</button>' +
+        '<button class="uf-btn uf-btn-delete">Delete</button>' +
       '</div>' +
     '</div>';
   });
@@ -35,60 +38,112 @@ function renderUnidentifiedWidget(){
 
 function renderAnalytics(){
 
-  if(!archives.length) return;
+  var totalCollectedAll = archives.reduce(function(s,a){ return s + a.collected; }, 0);
+  var totalExpensesAll = archives.reduce(function(s,a){ return s + toNumber(a.eventExpenses||0) + toNumber(a.reserveExpenses||0); }, 0);
+  var expenseRatio = totalCollectedAll > 0 ? (totalExpensesAll / totalCollectedAll * 100).toFixed(1) : "-";
 
-  const best = archives.reduce(
-    (a,b)=>
-    b.collected > a.collected
-      ? b
-      : a
-  );
-
-  const avg =
-  archives.reduce(
-    (sum,a)=>
-    sum + a.collected,
-    0
-  ) / archives.length;
-
-  $("bestMonth").innerText =
-    best.month;
-
-  $("highestCollection").innerText =
-    "₱" +
-    best.collected.toLocaleString();
-
-  $("averageCollection").innerText =
-    "₱" +
-    Math.round(avg).toLocaleString();
-
-  // Trend chart
-  var canvas = $("trendChart");
-  if(canvas && canvas.getContext){
-    var ctx = canvas.getContext("2d");
-    var W = canvas.width, H = canvas.height;
-    ctx.clearRect(0,0,W,H);
-    if(archives.length >= 2){
-      var vals = archives.slice().reverse().map(function(a){ return a.collected; });
-      var max = Math.max(...vals, 1);
-      var pad = 20;
-      var stepX = (W - pad*2) / (vals.length-1 || 1);
-      ctx.beginPath();
-      ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth = 2;
-      vals.forEach(function(v,i){
-        var x = pad + i * stepX;
-        var y = H - pad - ((v / max) * (H - pad*2));
-        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-      });
-      ctx.stroke();
-      ctx.lineTo(pad + (vals.length-1)*stepX, H - pad);
-      ctx.lineTo(pad, H - pad);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(56,189,248,.12)";
-      ctx.fill();
-    }
+  if(!archives.length){
+    if($("bestMonth")) $("bestMonth").innerText = "-";
+    if($("highestCollection")) $("highestCollection").innerText = "₱0";
+    if($("averageCollection")) $("averageCollection").innerText = "₱0";
+    if($("totalCollectedAll")) $("totalCollectedAll").innerText = "₱0";
+    if($("worstMonth")) $("worstMonth").innerText = "-";
+    if($("expenseRatio")) $("expenseRatio").innerText = "-";
+    renderTrendChart();
+    return;
   }
+
+  const best = archives.reduce(function(a,b){ return b.collected > a.collected ? b : a; });
+  const worst = archives.reduce(function(a,b){ return b.collected < a.collected ? b : a; });
+  const avg = archives.reduce(function(sum,a){ return sum + a.collected; }, 0) / archives.length;
+
+  if($("bestMonth")) $("bestMonth").innerText = best.month;
+  if($("highestCollection")) $("highestCollection").innerText = "₱" + best.collected.toLocaleString();
+  if($("averageCollection")) $("averageCollection").innerText = "₱" + Math.round(avg).toLocaleString();
+  if($("totalCollectedAll")) $("totalCollectedAll").innerText = "₱" + totalCollectedAll.toLocaleString();
+  if($("worstMonth")) $("worstMonth").innerText = worst.month;
+  if($("expenseRatio")) $("expenseRatio").innerText = expenseRatio === "-" ? "-" : expenseRatio + "%";
+
+  renderTrendChart();
+}
+
+function renderTrendChart(){
+  var canvas = $("trendChart");
+  if(!canvas || !canvas.getContext) return;
+  var rect = canvas.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  var ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  var W = rect.width, H = rect.height;
+  ctx.clearRect(0,0,W,H);
+
+  if(archives.length < 2){
+    ctx.fillStyle = "#9fb2cc";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(archives.length === 1 ? "Add more months to see the trend" : "No archive data yet", W/2, H/2);
+    return;
+  }
+
+  var sorted = archives.slice().sort(function(a,b){ return a.month > b.month ? 1 : -1; });
+  var vals = sorted.map(function(a){ return a.collected; });
+  var labels = sorted.map(function(a){ return a.month; });
+  var max = Math.max(...vals, 1);
+  var pad = 30, bottomPad = 24, topPad = 20;
+  var availH = H - pad - bottomPad - topPad;
+  var chartW = W - pad * 2;
+  var stepX = chartW / (vals.length - 1 || 1);
+
+  // Fill area
+  ctx.beginPath();
+  vals.forEach(function(v,i){
+    var x = pad + i * stepX;
+    var y = pad + topPad + availH - ((v / max) * availH);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(pad + (vals.length-1)*stepX, pad + topPad + availH);
+  ctx.lineTo(pad, pad + topPad + availH);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(56,189,248,.12)";
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = "#38bdf8";
+  ctx.lineWidth = 2;
+  vals.forEach(function(v,i){
+    var x = pad + i * stepX;
+    var y = pad + topPad + availH - ((v / max) * availH);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Dots + value labels
+  vals.forEach(function(v,i){
+    var x = pad + i * stepX;
+    var y = pad + topPad + availH - ((v / max) * availH);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = "#38bdf8";
+    ctx.fill();
+    // Value label
+    ctx.fillStyle = "rgba(56,189,248,.85)";
+    ctx.font = "bold 9px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("₱" + v.toLocaleString(), x, y - 8);
+  });
+
+  // Month labels
+  ctx.fillStyle = "#9fb2cc";
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "center";
+  labels.forEach(function(l, i){
+    var x = pad + i * stepX;
+    var parts = l.split(" ");
+    ctx.fillText(parts[0]?.slice(0,3) + (parts[1] ? " " + parts[1] : ""), x, H - 6);
+  });
 }
 // ================= SAFE STORAGE =================
 function generateStudentCode(){
@@ -125,6 +180,10 @@ var _modalStudentId = null;
 var _selectedStudentIds = new Set();
 var _expenseCategoryFilter = "all";
 var _expenseDateFrom = "", _expenseDateTo = "";
+var _expenseTextFilter = "";
+var _historyPage = 1, _historyPageSize = 50;
+var _historyMonthFilter = "", _historyDateFrom = "", _historyDateTo = "";
+var _historySearch = "";
 var _page = 0;
 var _pageSize = 25;
 var _filteredStudents = [];
@@ -185,6 +244,8 @@ function applyPrefs(){
 loadPrefs();
 
 var EXPENSE_CATEGORIES = ["Supplies","Printing","Food","Transport","Project","Event","Misc"];
+var EXPENSE_CATEGORY_COLORS = { Supplies:"#6366f1", Printing:"#8b5cf6", Food:"#f59e0b", Transport:"#06b6d4", Project:"#10b981", Event:"#f97316", Misc:"#9fb2cc" };
+
 
 var weeklyFee = Number(localStorage.getItem("weeklyFee")) || 5;
 
@@ -247,6 +308,8 @@ function _saveStorage(){
 }
 function save(){
   _saveStorage();
+  saveArchive();
+  saveArchiveTrash();
   _lastSaveTime = Date.now();
   updateLastSaved();
   if (typeof firebaseData !== "undefined" && typeof cfAuth !== "undefined" && cfAuth.getCurrentUser && cfAuth.getCurrentUser()) {
@@ -263,14 +326,16 @@ function saveSettings(){
   localStorage.setItem("startDate", startDate);
 
   var fee = toNumber($("weeklyFee")?.value);
-  if(fee > 0){
-    if (window.classSettings && window.classSettings.forceWeeklyFee && !_adminMode) {
-      showToast("Weekly fee is controlled by admin", "error");
-      return;
-    }
-    weeklyFee = fee;
-    localStorage.setItem("weeklyFee", fee);
+  if(fee <= 0){
+    showToast("Enter a valid weekly fee", "error");
+    return;
   }
+  if (window.classSettings && window.classSettings.forceWeeklyFee && !_adminMode) {
+    showToast("Weekly fee is controlled by admin", "error");
+    return;
+  }
+  weeklyFee = fee;
+  localStorage.setItem("weeklyFee", fee);
 
   renderCalendar();
   render();
@@ -492,12 +557,13 @@ function addImportedStudents(names){
   });
 
   uniqueNames.forEach((name,index) => {
-    const id = Date.now() + index;
+    const id = Date.now() + Math.floor(Math.random() * 10000) + index;
 
     students.push({
       id,
       name,
-      payments:[]
+      payments:[],
+      code: generateStudentCode()
     });
 
     importedIds.push(id);
@@ -731,7 +797,7 @@ function confirmCSVImport(){
   students.forEach(function(s){ nameSet[s.name.toLowerCase()] = true; });
   names.forEach(function(name){
     if(nameSet[name.toLowerCase()]) return;
-    students.push({ id: Date.now() + Math.floor(Math.random() * 1000), name: name, notes: "", payments: [] });
+    students.push({ id: Date.now() + Math.floor(Math.random() * 10000), name: name, notes: "", payments: [], code: generateStudentCode() });
     nameSet[name.toLowerCase()] = true;
     addedCount++;
   });
@@ -753,18 +819,18 @@ function addPayment(){
   const amount = toNumber($("paymentAmount")?.value);
 
   if(!id){
-    alert("Please select a student first.");
+    showToast("Please select a student first.", "error");
     return;
   }
 
   if(amount <= 0){
-    alert("Please enter a valid payment amount.");
+    showToast("Please enter a valid payment amount.", "error");
     return;
   }
 
   const s = students.find(x=>x.id===id);
   if(!s){
-    alert("Selected student not found. Please refresh the student list.");
+    showToast("Selected student not found. Please refresh the student list.", "error");
     renderSelect();
     return;
   }
@@ -816,21 +882,26 @@ function addUnidentifiedFund(amount, date, note){
 }
 
 function deleteUnidentifiedFund(id){
-  unidentifiedFunds = unidentifiedFunds.filter(function(f){ return f.id !== id; });
-  save();
-  render();
+  var f = unidentifiedFunds.find(function(x){ return x.id === id; });
+  if (!f) return;
+  showConfirmDialog("Delete unidentified fund of ₱" + toNumber(f.amount).toLocaleString() + (f.date ? " from " + f.date : "") + "?", function(){
+    unidentifiedFunds = unidentifiedFunds.filter(function(x){ return x.id !== id; });
+    save();
+    render();
+    showToast("Unidentified fund deleted", "success");
+  });
 }
 
 function assignUnidentifiedFund(fundId, studentId, assignAmount){
   var fund = unidentifiedFunds.find(function(f){ return f.id === fundId; });
-  if (!fund) { showToast("Fund not found", "error"); return; }
+  if (!fund) { showToast("Fund not found", "error"); return false; }
   var student = students.find(function(s){ return s.id === studentId; });
-  if (!student) { showToast("Student not found", "error"); return; }
+  if (!student) { showToast("Student not found", "error"); return false; }
 
   assignAmount = toNumber(assignAmount);
   if (assignAmount <= 0 || assignAmount > fund.amount) {
     showToast("Invalid amount", "error");
-    return;
+    return false;
   }
 
   if (!student.payments) student.payments = [];
@@ -855,6 +926,7 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
   save();
   render();
   showToast("₱" + assignAmount.toLocaleString() + " assigned to " + student.name, "success");
+  return true;
 }
 
 function readReceiptImage(file){
@@ -881,6 +953,8 @@ function toggleFundSplit(){
     if(amountField) amountField.value = "";
   }else{
     if(splitDiv) splitDiv.style.display = "none";
+    if($("eventAmount")) $("eventAmount").value = "";
+    if($("reserveAmount")) $("reserveAmount").value = "";
   }
 }
 
@@ -923,16 +997,24 @@ async function addExpense(){
     }
   }
 
-  const date = $("expenseDate")?.value || new Date().toISOString().slice(0,10);
+  const dateRaw = $("expenseDate")?.value;
+  if(!dateRaw) showToast("Date not set — using today's date", "info");
+  const date = dateRaw || new Date().toISOString().slice(0,10);
   const receiptFile = $("expenseReceipt")?.files?.[0];
+
+  if(receiptFile && receiptFile.size > 2 * 1024 * 1024){
+    showToast("Receipt image must be under 2MB", "error");
+    return;
+  }
 
   let receipt = null;
 
   try{
+    showToast("Reading receipt image...", "info");
     receipt = await readReceiptImage(receiptFile);
   }catch(error){
     console.error(error);
-    alert("Could not read the receipt image. Try another image.");
+    showToast("Could not read the receipt image. Try another image.", "error");
     return;
   }
 
@@ -963,6 +1045,7 @@ async function addExpense(){
   if($("expenseFund")) $("expenseFund").value = "event";
   if($("fundSplit")) $("fundSplit").style.display = "none";
   if($("expenseReceipt")) $("expenseReceipt").value = "";
+  if($("expenseCategory")) $("expenseCategory").value = "";
 
   save();
   render();
@@ -970,27 +1053,50 @@ async function addExpense(){
 }
 
 function deleteExpense(id){
-  var idx = expenses.findIndex(function(e){ return e.id === id; });
-  if(idx === -1) return;
-  var backup = {...expenses[idx]};
-  expenses = expenses.filter(function(e){ return e.id !== id; });
-  save();
-  render();
-  showUndoToast("Expense deleted", function(){
-    expenses.push(backup);
+  showConfirmDialog('<p style="margin:0;">Delete this expense? You can undo this action.</p>', function(){
+    var idx = expenses.findIndex(function(e){ return e.id === id; });
+    if(idx === -1) return;
+    var backup = {...expenses[idx]};
+    expenses = expenses.filter(function(e){ return e.id !== id; });
     save();
     render();
-    showToast("Expense restored", "success");
-  }, 4000);
+    showUndoToast("Expense deleted", function(){
+      expenses.push(backup);
+      save();
+      render();
+      showToast("Expense restored", "success");
+    }, 4000);
+  });
 }
 
+function editToggleFundSplit(){
+  var splitDiv = $("editFundSplit");
+  var amountField = $("editExpAmount");
+  var fund = $("editExpFund")?.value;
+  if(fund === "both"){
+    if(splitDiv) splitDiv.style.display = "flex";
+    if(amountField) amountField.value = "";
+  }else{
+    if(splitDiv) splitDiv.style.display = "none";
+    if($("editEventAmount")) $("editEventAmount").value = "";
+    if($("editReserveAmount")) $("editReserveAmount").value = "";
+  }
+}
+function editUpdateSplitTotal(){
+  var eventVal = toNumber($("editEventAmount")?.value);
+  var reserveVal = toNumber($("editReserveAmount")?.value);
+  var amountField = $("editExpAmount");
+  if(amountField) amountField.value = eventVal + reserveVal || "";
+}
 function editExpense(id){
   var e = expenses.find(function(x){ return x.id === id; });
   if(!e) return;
+  var curFund = e.fund || "event";
+  var isBoth = curFund === "both";
   var body =
     '<div style="display:grid;gap:10px;">' +
       '<label style="font-size:13px;font-weight:700;">Description</label>' +
-      '<input id="editExpTitle" value="' + (e.title||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;") + '">' +
+      '<input id="editExpTitle" value="' + escHtml(e.title||"") + '">' +
       '<label style="font-size:13px;font-weight:700;">Amount</label>' +
       '<input id="editExpAmount" type="number" value="' + e.amount + '">' +
       '<label style="font-size:13px;font-weight:700;">Date</label>' +
@@ -998,21 +1104,54 @@ function editExpense(id){
       '<label style="font-size:13px;font-weight:700;">Category</label>' +
       '<select id="editExpCategory">' +
         EXPENSE_CATEGORIES.map(function(c){ return '<option value="' + c + '"' + (e.category === c ? " selected" : "") + ">" + c + "</option>"; }).join("") +
-      "</select>" +
+      '</select>' +
+      '<label style="font-size:13px;font-weight:700;">Fund Source</label>' +
+      '<select id="editExpFund" onchange="editToggleFundSplit()">' +
+        '<option value="event"' + (curFund === "event" ? " selected" : "") + '>🎉 Event Fund</option>' +
+        '<option value="reserve"' + (curFund === "reserve" ? " selected" : "") + '>🏦 Reserve Fund</option>' +
+        '<option value="both"' + (curFund === "both" ? " selected" : "") + '>Both</option>' +
+      '</select>' +
+      '<div id="editFundSplit" style="display:' + (isBoth ? "flex" : "none") + ';gap:10px;">' +
+        '<input id="editEventAmount" type="number" placeholder="From Event" class="split-input" oninput="editUpdateSplitTotal()" value="' + toNumber(e.eventAmount||0) + '">' +
+        '<input id="editReserveAmount" type="number" placeholder="From Reserve" class="split-input" oninput="editUpdateSplitTotal()" value="' + toNumber(e.reserveAmount||0) + '">' +
+      '</div>' +
+      (e.receipt ? '<div style="margin-bottom:6px;"><img src="' + e.receipt + '" style="width:60px;height:60px;object-fit:cover;border-radius:8px;"><br><span style="font-size:11px;color:var(--muted);">Current receipt</span></div>' : "") +
+      '<label style="font-size:13px;font-weight:700;">Upload new receipt (optional)</label>' +
+      '<input id="editExpReceipt" type="file" accept="image/*">' +
     "</div>";
   showConfirmDialog(body, function(){
     var newTitle = $("editExpTitle")?.value?.trim();
     var newAmount = toNumber($("editExpAmount")?.value);
     var newDate = $("editExpDate")?.value;
     var newCategory = $("editExpCategory")?.value;
+    var newFund = $("editExpFund")?.value || "event";
     if(!newTitle || newAmount <= 0) return;
     e.title = newTitle;
     e.amount = newAmount;
     if(newDate) e.date = newDate;
     if(newCategory) e.category = newCategory;
-    save();
-    render();
-    showToast("Expense updated", "success");
+    e.fund = newFund;
+    if(newFund === "both"){
+      e.eventAmount = toNumber($("editEventAmount")?.value);
+      e.reserveAmount = toNumber($("editReserveAmount")?.value);
+      e.amount = e.eventAmount + e.reserveAmount;
+    }else{
+      delete e.eventAmount;
+      delete e.reserveAmount;
+    }
+    var receiptFile = $("editExpReceipt")?.files?.[0];
+    if(receiptFile){
+      readReceiptImage(receiptFile).then(function(receipt){
+        if(receipt) e.receipt = receipt;
+        save();
+        render();
+        showToast("Expense updated", "success");
+      });
+    }else{
+      save();
+      render();
+      showToast("Expense updated", "success");
+    }
   });
 }
 
@@ -1071,6 +1210,7 @@ function renderExpenses(){
     if(_expenseCategoryFilter !== "all" && e.category !== _expenseCategoryFilter) return false;
     if(_expenseDateFrom && e.date && e.date < _expenseDateFrom) return false;
     if(_expenseDateTo && e.date && e.date > _expenseDateTo) return false;
+    if(_expenseTextFilter && !(e.title||"").toLowerCase().includes(_expenseTextFilter)) return false;
     return true;
   });
 
@@ -1103,7 +1243,7 @@ function renderExpenses(){
         <tr>
           <td>${expense.date || "-"}</td>
           <td>${escExpTitle}</td>
-          <td><span class="chip" style="background:rgba(99,102,241,.08);color:var(--accent-300);border-color:rgba(99,102,241,.12);padding:2px 10px;font-size:10px">${expense.category || "Misc"}</span></td>
+          <td><span class="chip" style="background:${EXPENSE_CATEGORY_COLORS[expense.category]||"#9fb2cc"}18;color:${EXPENSE_CATEGORY_COLORS[expense.category]||"#9fb2cc"};border-color:${EXPENSE_CATEGORY_COLORS[expense.category]||"#9fb2cc"}30;padding:2px 10px;font-size:10px">${expense.category || "Misc"}</span></td>
           <td>₱${toNumber(expense.amount).toLocaleString()}</td>
           <td><span class="fund-badge fund-${fund}">${fundLabel}</span></td>
           <td>
@@ -1193,16 +1333,22 @@ function editPayment(studentId,index){
   var s = students.find(function(x){ return x.id===studentId; });
   if(!s || !s.payments[index]) return;
   var current = s.payments[index];
+  // Convert stored locale date string to YYYY-MM-DD for the date input
+  var dateVal = "";
+  if(current.date){
+    var d = new Date(current.date);
+    if(!isNaN(d.getTime())) dateVal = d.toISOString().slice(0,10);
+  }
   var body =
     '<div style="display:grid;gap:10px;">' +
       '<label style="font-size:13px;font-weight:700;">Amount</label>' +
-      '<input id="editPayAmount" type="number" value="' + current.amount + '">' +
+      '<input id="editPayAmount" type="number" value="' + escHtml(String(current.amount)) + '">' +
       '<label style="font-size:13px;font-weight:700;">Date</label>' +
-      '<input id="editPayDate" type="date" value="' + (current.date || "") + '">' +
+      '<input id="editPayDate" type="date" value="' + escHtml(dateVal) + '">' +
       '<label style="font-size:13px;font-weight:700;">Month</label>' +
-      '<input id="editPayMonth" value="' + (current.month || "") + '">' +
+      '<input id="editPayMonth" value="' + escHtml(current.month || "") + '">' +
       '<label style="font-size:13px;font-weight:700;">Type</label>' +
-      '<input id="editPayType" value="' + (current.type || "Cash") + '">' +
+      '<input id="editPayType" value="' + escHtml(current.type || "Cash") + '">' +
     "</div>";
   showConfirmDialog(body, function(){
     var amt = toNumber($("editPayAmount")?.value);
@@ -1516,14 +1662,14 @@ function render(){
   if ($("dashUnidentified")) animateNumber($("dashUnidentified"), getTotalUnidentified());
   if ($("dashTotalExpenses")) animateNumber($("dashTotalExpenses"), getTotalExpenses());
 
-  var dashUpdated = 0, dashDebt = 0, dashAdvanced = 0;
+  var dashUpdated = 0, dashDebt = 0, dashAdvanced = 0, dashNone = 0;
   students.forEach(function(s){
     var md = getMonthDebt(s);
     var pc = (s.payments||[]).length;
     if (isStudentAdvanced(s)) {
       dashAdvanced++;
     } else if(pc === 0) {
-      /* none — no stat slot for this on dashboard */
+      dashNone++;
     } else if(md === 0) {
       dashUpdated++;
     } else {
@@ -1534,9 +1680,16 @@ function render(){
   $("updatedCount").innerText = dashUpdated;
   if ($("debtCount")) $("debtCount").innerText = dashDebt;
   $("advancedCount").innerText = dashAdvanced;
+  if ($("noneCount")) $("noneCount").innerText = dashNone;
   if ($("insightWeeklyFee")) $("insightWeeklyFee").textContent = "PHP " + weeklyFee;
 
-  var pct = monthExpected > 0 ? (monthTotalCollected / monthExpected) * 100 : 0;
+  // Show/hide empty state
+  var dashEmpty = $("dashEmpty");
+  var dashMetrics = document.querySelector(".dash-metrics");
+  if (dashEmpty) dashEmpty.style.display = students.length === 0 ? "" : "none";
+  if (dashMetrics) dashMetrics.style.display = students.length === 0 ? "none" : "";
+
+  var pct = allTimeExpected > 0 ? (allTimeCollected / allTimeExpected) * 100 : 0;
   var pctEl = $("dashProgressPct");
   if(pctEl) pctEl.textContent = pct.toFixed(1) + "%";
   var fillEl = $("progressFill");
@@ -1544,7 +1697,7 @@ function render(){
   var labelEl = $("dashProgressLabel");
   if(labelEl) labelEl.textContent = "This month: PHP " + monthTotalCollected.toFixed(2) + " / PHP " + monthExpected.toFixed(2);
   var weekEl = $("dashWeekDisplay");
-  if(weekEl) weekEl.textContent = getCurrentWeek();
+  if(weekEl) weekEl.textContent = getCurrentWeek() + " of " + validWeeks;
 
   // ================= FUND BREAKDOWN (with expense tracking) =================
   const eventExpensesSum = expenses.reduce((s,e) => {
@@ -1568,6 +1721,15 @@ function render(){
   animateNumber($("eventAvailable"), eventAvailable);
   animateNumber($("reserveAvailable"), reserveAvailable);
 
+  if ($("insightEventAlloc")) {
+    var eventPct = allCollected > 0 ? (grossEventFund / allCollected) * 100 : 0;
+    $("insightEventAlloc").textContent = "₱" + grossEventFund.toLocaleString() + " (" + eventPct.toFixed(0) + "%) — Avail: ₱" + eventAvailable.toLocaleString();
+  }
+  if ($("insightReserveAlloc")) {
+    var reservePct = allCollected > 0 ? (grossReserveFund / allCollected) * 100 : 0;
+    $("insightReserveAlloc").textContent = "₱" + grossReserveFund.toLocaleString() + " (" + reservePct.toFixed(0) + "%) — Avail: ₱" + reserveAvailable.toLocaleString();
+  }
+
   renderExpenses();
 
   var weekDisp = $("currentWeekDisplay");
@@ -1586,7 +1748,6 @@ function render(){
   
   renderSelect();
 
-  saveArchive();
   renderArchive();
 
   if(typeof renderAnalytics === "function"){
@@ -1609,6 +1770,9 @@ function renderPaymentsForSelectedStudent(){
   const selectedId = toNumber(sel.value);
   const student = students.find(x => x.id === selectedId);
 
+  // Clear amount field on student change (L3)
+  if($("paymentAmount")) $("paymentAmount").value = "";
+
   if(!selectedId || !student){
     container.innerHTML = `
       <div class="muted-text" style="padding:12px 0 2px;">
@@ -1619,11 +1783,23 @@ function renderPaymentsForSelectedStudent(){
   }
 
   const payments = student.payments || [];
+  const totalPaid = getTotal(student);
+  const curWeek = getCurrentWeek();
+  var expected = weeklyFee * curWeek;
+  var weeksPaid = payments.length;
+
+  // Payment summary (M3)
+  var summary = '<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">' +
+    '<strong>' + escHtml(student.name) + '</strong> — ' +
+    weeksPaid + ' payment' + (weeksPaid !== 1 ? "s" : "") +
+    ' · ₱' + totalPaid.toLocaleString() + ' paid of ₱' + expected.toLocaleString() + ' expected' +
+    (totalPaid >= expected ? ' ✅' : '') +
+  '</div>';
 
   if(!payments.length){
-    container.innerHTML = `
+    container.innerHTML = summary + `
       <div class="muted-text" style="padding:12px 0 2px;">
-        No payments recorded for <strong>${student.name}</strong> yet.
+        No payments recorded yet.
       </div>
     `;
     return;
@@ -1635,8 +1811,9 @@ function renderPaymentsForSelectedStudent(){
     .map((p, i) => `
       <tr>
         <td class="amt">₱${toNumber(p.amount).toLocaleString()}</td>
-        <td>${p.date || "-"}</td>
-        <td>${p.month || "-"}</td>
+        <td>${escHtml(p.date || "-")}</td>
+        <td>${escHtml(p.month || "-")}</td>
+        <td>${p.week ? "Week " + p.week : "-"}</td>
         <td style="text-align:right;white-space:nowrap">
           <button class="ghost-btn" style="min-height:30px;height:30px;padding:0 10px;font-size:11px" onclick="editPayment(${student.id},${i})">✏ Edit</button>
           <button class="ghost-btn" style="min-height:30px;height:30px;padding:0 10px;font-size:11px" onclick="deletePayment(${student.id},${i})">🗑 Delete</button>
@@ -1644,7 +1821,7 @@ function renderPaymentsForSelectedStudent(){
       </tr>
     `).join("");
 
-  container.innerHTML = `
+  container.innerHTML = summary + `
     <div class="tbl-wrap">
       <table class="table-upgraded pay-tbl">
         <thead>
@@ -1652,6 +1829,7 @@ function renderPaymentsForSelectedStudent(){
             <th>Amount</th>
             <th>Date</th>
             <th>Month</th>
+            <th>Week</th>
             <th style="text-align:right">Action</th>
           </tr>
         </thead>
@@ -1687,7 +1865,7 @@ function renderSelect(){
     return;
   }
 
-  sel.innerHTML = filtered.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+  sel.innerHTML = filtered.map(s => `<option value="${s.id}">${escHtml(s.name)}</option>`).join("");
 
   // Restore previous selection if it still matches search; otherwise auto-select first
   const stillExists = filtered.some(s => s.id === prevSelectedId);
@@ -1703,8 +1881,44 @@ function renderSelect(){
   }
 }
 
+function copyStudentPayments(){
+  var sel = $("studentSelect");
+  var id = toNumber(sel?.value);
+  var student = students.find(function(x){ return x.id === id; });
+  if(!student){
+    showToast("Select a student first", "error");
+    return;
+  }
+  var payments = student.payments || [];
+  var totalPaid = getTotal(student);
+  var curWeek = getCurrentWeek();
+  var expected = weeklyFee * curWeek;
+  var lines = [
+    "📋 Payment History — " + student.name,
+    "Month: " + new Date().toLocaleString("en-US", {month:"long", year:"numeric"}),
+    "Weekly Fee: ₱" + weeklyFee,
+    ""
+  ];
+  if(!payments.length){
+    lines.push("No payments recorded yet.");
+  }else{
+    payments.forEach(function(p, i){
+      lines.push("  " + (i+1) + ". ₱" + toNumber(p.amount).toLocaleString() + " — " + (p.date || "-") + (p.week ? " (Week " + p.week + ")" : ""));
+    });
+  }
+  lines.push("");
+  lines.push("Total Paid: ₱" + totalPaid.toLocaleString() + " / ₱" + expected.toLocaleString());
+  var remaining = Math.max(0, expected - totalPaid);
+  lines.push("Remaining: ₱" + remaining.toLocaleString() + (remaining > 0 ? " (" + Math.ceil(remaining / weeklyFee) + " week" + (Math.ceil(remaining / weeklyFee) !== 1 ? "s" : "") + ")" : ""));
+  navigator.clipboard.writeText(lines.join("\n")).then(function(){
+    showToast("Payment history copied", "success");
+  }, function(){
+    showToast("Could not copy — select manually", "error");
+  });
+}
+
 // ================= BULK PAYMENT EDITOR =================
-var _bulkPayVisible = true;
+var _bulkPayVisible = false;
 
 function toggleBulkPay(){
   _bulkPayVisible = !_bulkPayVisible;
@@ -1734,24 +1948,25 @@ function renderBulkTable(){
     return;
   }
 
-  var html = "";
+  var html = "", totalAmt = 0;
 
   filtered.forEach(function(s, i){
     var monthDebt = getMonthDebt(s);
     var debtClass = monthDebt > 0 ? "bulk-debt" : "bulk-ok";
+    totalAmt += weeklyFee;
 
     html +=
       '<tr>' +
         '<td><label class="bulk-check-label"><input type="checkbox" class="bulk-check-input" data-id="' + s.id + '" checked><span class="bulk-check-box"></span></label></td>' +
         '<td class="bulk-num">' + (i+1) + '</td>' +
-        '<td class="bulk-name">' + s.name + '</td>' +
+        '<td class="bulk-name">' + escHtml(s.name) + '</td>' +
         '<td class="bulk-stat ' + debtClass + '">' + (monthDebt > 0 ? "🔴 ₱" + monthDebt : "✅") + '</td>' +
-        '<td><input type="number" class="compact-input" data-id="' + s.id + '" value="' + weeklyFee + '"></td>' +
+        '<td><input type="number" min="0" class="compact-input" data-id="' + s.id + '" value="' + weeklyFee + '"></td>' +
       '</tr>';
   });
 
   container.innerHTML =
-    '<div class="bulk-count">' + filtered.length + ' student' + (filtered.length === 1 ? "" : "s") + ' shown</div>' +
+    '<div class="bulk-count">' + filtered.length + ' student' + (filtered.length === 1 ? "" : "s") + ' shown · Total: ₱' + totalAmt.toLocaleString() + '</div>' +
     '<div class="tbl-wrap"><table class="table-upgraded bulk-tbl">' +
       '<thead><tr>' +
         '<th><label class="bulk-check-label"><input type="checkbox" class="bulk-check-input" onchange="bulkToggleAll(this.checked)" checked><span class="bulk-check-box"></span></label></th>' +
@@ -1796,7 +2011,7 @@ function bulkPayChecked(){
     var s = studentMap[id];
     if(!s) return;
 
-    s.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek() });
+    s.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek(), _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8) });
     count++;
   });
 
@@ -1822,7 +2037,7 @@ function bulkPayAll(){
       if(amount <= 0) return;
       var s = studentMap[id];
       if(!s) return;
-      s.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek() });
+      s.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek(), _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8) });
       count++;
     });
     if(!count){ showToast("No valid amounts entered", "error"); return; }
@@ -2333,6 +2548,7 @@ function importBackup(event){
         if($("startDate")){
           $("startDate").value = startDate || "";
         }
+        saveArchive();
         render();
         renderCalendar();
         renderArchive();
@@ -2407,8 +2623,12 @@ function showPage(page){
     renderExpenses();
   }
 
-  if(page === "payments" && typeof renderBulkTable === "function" && _bulkPayVisible){
-    renderBulkTable();
+  if(page === "payments"){
+    var bs = $("bulkPaySection");
+    var bt = $("bulkToggle");
+    if(bs) bs.style.display = _bulkPayVisible ? "" : "none";
+    if(bt) bt.textContent = _bulkPayVisible ? "▼" : "▶";
+    if(_bulkPayVisible && typeof renderBulkTable === "function") renderBulkTable();
   }
 
   // UI-only animation trigger
@@ -2417,6 +2637,21 @@ function showPage(page){
 
 
 
+function getWeeksThisMonth(){
+  var now = new Date();
+  var year = now.getFullYear(), month = now.getMonth();
+  if(!startDate) return [1];
+  var cursor = new Date(year, month, 1);
+  while(cursor.getDay() === 0 || cursor.getDay() === 6) cursor.setDate(cursor.getDate() + 1);
+  var startWeek = getWeekForDate(cursor);
+  cursor = new Date(year, month + 1, 0);
+  while(cursor.getDay() === 0 || cursor.getDay() === 6) cursor.setDate(cursor.getDate() - 1);
+  var endWeek = getWeekForDate(cursor);
+  var weeks = [];
+  for(var w = startWeek; w <= endWeek; w++){ if(!isSkipped(w)) weeks.push(w); }
+  return weeks;
+}
+
 function renderCalendar(){
 
   const container = $("calendarWeeks");
@@ -2424,78 +2659,65 @@ function renderCalendar(){
   if(!container) return;
 
   if(!startDate){
-
     container.innerHTML = `
-      <p>
-        Select a first collection date first.
-      </p>
+      <div class="card" style="text-align:center;padding:30px;">
+        <p style="margin:0 0 8px;font-size:15px;">No collection start date set yet.</p>
+        <p style="margin:0;font-size:13px;color:var(--muted);">Pick the first collection date above to see the schedule.</p>
+      </div>
     `;
-
     return;
   }
 
   const start = new Date(startDate);
+  const curWeek = getCurrentWeek();
+  var weeks = getWeeksThisMonth();
 
   let html = "";
 
   var overrideBadge = manualWeekOverride
     ? '<span style="font-size:12px;color:var(--amber);display:block;margin-bottom:12px;">🔧 Week manually set to ' + manualWeekOverride + ' — <a href="#" onclick="clearManualWeek();return false" style="color:var(--blue);">clear override</a></span>'
-    : '<span style="font-size:12px;color:var(--muted);display:block;margin-bottom:12px;">🤖 Week auto-calculated from start date</span>';
+    : '<span style="font-size:12px;color:var(--muted);display:block;margin-bottom:12px;">🤖 Week ' + curWeek + ' of ' + weeks.length + ' — auto-calculated from start date</span>';
 
   html += overrideBadge;
 
-  for(let i=1;i<=5;i++){
-
-    const weekStart = new Date(start);
-    weekStart.setDate(
-      start.getDate() + ((i-1)*7)
-    );
-
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(
-      weekStart.getDate() + 4
-    );
+  weeks.forEach(function(weekNum){
+    var isCurrent = weekNum === curWeek;
+    var cardBorder = isCurrent ? 'border:2px solid var(--accent-300);box-shadow:0 0 16px rgba(99,102,241,.2);' : '';
+    var weekStart = new Date(start);
+    weekStart.setDate(start.getDate() + ((weekNum-1)*7));
+    var weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 4);
 
     html += `
-<div class="card">
+<div class="card" style="${cardBorder}position:relative;">
 
-  <strong>
-    Week ${i}
-  </strong>
+  <strong>Week ${weekNum}</strong>
+  ${isCurrent ? '<span style="position:absolute;top:12px;right:16px;font-size:10px;background:var(--accent-300);color:#fff;padding:2px 10px;border-radius:20px;font-weight:700;">CURRENT</span>' : ''}
 
   <br>
 
-  ${weekStart.toLocaleDateString()}
-  -
-  ${weekEnd.toLocaleDateString()}
+  ${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}
 
   <br><br>
 
+  <span style="font-size:13px;color:var(--muted);">${students.length} student${students.length !== 1 ? "s" : ""} enrolled</span>
+
+  <br>
+
   <span>
-    ${
-      isSkipped(i)
-      ? "🚫 Skipped"
-      : "✅ Active"
-    }
+    ${isSkipped(weekNum) ? "🚫 Skipped" : "✅ Active"}
   </span>
 
   <br><br>
 
-  ${
-    isSkipped(i)
-    ?
-    `<button onclick="unskipWeek(${i})">
-      Remove Skip
-    </button>`
-    :
-    `<button onclick="skipWeek(${i})">
-      Skip Week
-    </button>`
+  ${isSkipped(weekNum)
+    ? `<button onclick="unskipWeek(${weekNum})">Remove Skip</button>`
+    : `<button onclick="skipWeek(${weekNum})">Skip Week</button>`
   }
 
 </div>
 `;
-  }
+  });
 
   container.innerHTML = html;
 }
@@ -2580,33 +2802,85 @@ function saveArchive(){
 
 }
 
+function saveArchiveTrash(){
+  purgeArchiveTrash();
+  localStorage.setItem("archiveTrash", JSON.stringify(archiveTrash));
+}
+
+function purgeArchiveTrash(){
+  var cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  archiveTrash = (archiveTrash || []).filter(function(t){ return t._deletedAt > cutoff; });
+}
+
+function moveArchiveToTrash(index){
+  var a = archives[index];
+  if(!a) return;
+  archiveTrash.push({...a, _deletedAt: Date.now()});
+  archives.splice(index, 1);
+  saveArchiveTrash();
+  save();
+  render();
+  renderArchive();
+  showToast("Archive deleted. Restore from Trash below.", "info");
+}
+
+function restoreArchive(index){
+  var t = archiveTrash[index];
+  if(!t) return;
+  delete t._deletedAt;
+  archives.push(t);
+  archiveTrash.splice(index, 1);
+  saveArchiveTrash();
+  save();
+  render();
+  renderArchive();
+  showToast("Archive restored", "success");
+}
+
 function renderArchive(){
 
-  const container =
-  document.getElementById("archiveContainer");
+  const container = document.getElementById("archiveContainer");
+  const summary = document.getElementById("archiveSummary");
 
   if(!container) return;
 
+  purgeArchiveTrash();
+
   container.innerHTML = "";
 
-  if(archives.length === 0){
+  // Summary KPIs
+  if(summary){
+    var totalCollectedAll = archives.reduce(function(s,a){ return s + a.collected; }, 0);
+    var totalExpensesAll = archives.reduce(function(s,a){ return s + toNumber(a.eventExpenses||0) + toNumber(a.reserveExpenses||0); }, 0);
+    summary.innerHTML =
+      '<div class="dashboard" style="margin-bottom:14px;">' +
+        '<div class="card">Total Months<span>' + archives.length + '</span></div>' +
+        '<div class="card">Total Collected<span style="color:var(--green)">₱' + totalCollectedAll.toLocaleString() + '</span></div>' +
+        '<div class="card">Total Expenses<span style="color:var(--rose)">₱' + totalExpensesAll.toLocaleString() + '</span></div>' +
+        '<div class="card">Avg/Month<span style="color:var(--accent-300)">₱' + (archives.length ? Math.round(totalCollectedAll / archives.length).toLocaleString() : "0") + '</span></div>' +
+      '</div>';
+  }
 
+  if(archives.length === 0){
     container.innerHTML = `
-      <div class="card">
-        No archived months yet.
+      <div class="card" style="text-align:center;padding:30px;">
+        <p style="margin:0;font-size:15px;">No archived months yet.</p>
+        <p style="margin:0;font-size:13px;color:var(--muted);">Archives are created automatically each month.</p>
       </div>
     `;
-
+    renderArchiveTrash();
     return;
   }
 
   container.innerHTML = archives
   .slice()
   .reverse()
-  .map(a=>{
+  .map(function(a, i){
+    var realIndex = archives.length - 1 - i;
     const archiveTotal = a.collected + (a.unidentified || 0);
     const eventAvailable = Math.max(0, archiveTotal * 0.70 - (a.eventExpenses || 0));
     const reserveAvailable = Math.max(0, archiveTotal * 0.30 - (a.reserveExpenses || 0));
+    var avgPerStudent = a.students > 0 ? Math.round(a.collected / a.students) : 0;
 
     return `
       <div class="hero-card" style="padding:24px;margin-bottom:0">
@@ -2614,77 +2888,167 @@ function renderArchive(){
           <h3 style="margin:0;font-size:18px;font-weight:800">${a.month}</h3>
           <span class="chip" style="background:rgba(99,102,241,.1);color:var(--accent-300);border-color:rgba(99,102,241,.15);font-size:10px">${a.date}</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
-          <div class="stat-card"><span class="stat-label">Collected</span><span class="stat-value" style="color:var(--green)">₱${a.collected}</span></div>
-          <div class="stat-card"><span class="stat-label">Event Fund</span><span class="stat-value" style="color:#93c5fd">₱${a.eventFund}</span><span class="kpi-sub">Available: ₱${eventAvailable}</span></div>
-          <div class="stat-card"><span class="stat-label">Reserve Fund</span><span class="stat-value" style="color:var(--green)">₱${a.reserveFund}</span><span class="kpi-sub">Available: ₱${reserveAvailable}</span></div>
-          <div class="stat-card"><span class="stat-label">Expenses</span><span class="stat-value" style="color:var(--rose)">₱${(a.eventExpenses||0)+(a.reserveExpenses||0)}</span><span class="kpi-sub">👥 ${a.students} students</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+          <div class="stat-card"><span class="stat-label">Collected</span><span class="stat-value" style="color:var(--green)">₱${a.collected.toLocaleString()}</span></div>
+          <div class="stat-card"><span class="stat-label">Unidentified</span><span class="stat-value" style="color:var(--amber)">₱${(a.unidentified||0).toLocaleString()}</span></div>
+          <div class="stat-card"><span class="stat-label">Event Fund</span><span class="stat-value" style="color:#93c5fd">₱${a.eventFund.toLocaleString()}</span><span class="kpi-sub">Avail: ₱${eventAvailable.toLocaleString()}</span></div>
+          <div class="stat-card"><span class="stat-label">Reserve Fund</span><span class="stat-value" style="color:var(--green)">₱${a.reserveFund.toLocaleString()}</span><span class="kpi-sub">Avail: ₱${reserveAvailable.toLocaleString()}</span></div>
+          <div class="stat-card"><span class="stat-label">Expenses</span><span class="stat-value" style="color:var(--rose)">₱${((a.eventExpenses||0)+(a.reserveExpenses||0)).toLocaleString()}</span><span class="kpi-sub">👥 ${a.students} students · Avg ₱${avgPerStudent.toLocaleString()}/ea</span></div>
+        </div>
+        <div style="margin-top:10px;text-align:right;">
+          <button class="ghost-btn" style="font-size:11px;padding:4px 12px;color:var(--rose);" onclick="moveArchiveToTrash(${realIndex})">🗑 Delete</button>
         </div>
       </div>
     `;
   }).join("");
 
+  renderArchiveTrash();
+}
+
+function renderArchiveTrash(){
+  var el = document.getElementById("archiveTrash");
+  if(!el) return;
+  if(!archiveTrash || !archiveTrash.length){
+    el.innerHTML = "";
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "block";
+  el.innerHTML =
+    '<div class="card" style="margin-top:20px;padding:16px;">' +
+      '<h4 style="margin:0 0 12px;font-size:14px;color:var(--muted);">🗑 Recently Deleted (auto-clears after 30 days)</h4>' +
+      archiveTrash.slice().reverse().map(function(t, i){
+        var realIdx = archiveTrash.length - 1 - i;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;">' +
+          '<span>' + t.month + ' — ₱' + (t.collected||0).toLocaleString() + ' collected</span>' +
+          '<button class="ghost-btn" style="font-size:11px;padding:2px 10px;color:var(--green);" onclick="restoreArchive(' + realIdx + ')">↩ Restore</button>' +
+        '</div>';
+      }).join("") +
+    '</div>';
 }
 
 
 function renderHistory(){
 
-  const container =
-  $("historyContainer");
-
+  const container = $("historyContainer");
   if(!container) return;
 
-  const search =
-  ($("historySearch")?.value || "")
-  .toLowerCase();
+  // Read search from DOM
+  _historySearch = ($("historySearch")?.value || "").toLowerCase();
 
-  let html = "";
+  // Populate month dropdown
+  var monthSel = $("historyMonthFilter");
+  if(monthSel){
+    var months = [...new Set(paymentHistory.map(function(r){ return r.month; }))].sort();
+    monthSel.innerHTML = '<option value="">All Months</option>' + months.map(function(m){
+      return '<option value="' + m + '"' + (m === _historyMonthFilter ? ' selected' : '') + '>' + m + '</option>';
+    }).join("");
+  }
 
-  paymentHistory.forEach(function(record, i){
+  // Filter
+  var filtered = paymentHistory.filter(function(record){
+    if(_historySearch && !record.student.toLowerCase().includes(_historySearch)) return false;
+    if(_historyMonthFilter && record.month !== _historyMonthFilter) return false;
+    if(_historyDateFrom && record.date && record.date < _historyDateFrom) return false;
+    if(_historyDateTo && record.date && record.date > _historyDateTo) return false;
+    return true;
+  });
 
-    if(
-      !record.student
-      .toLowerCase()
-      .includes(search)
-    ) return;
+  // Pagination
+  var totalPages = Math.max(1, Math.ceil(filtered.length / _historyPageSize));
+  if(_historyPage > totalPages) _historyPage = totalPages;
+  var startIdx = (_historyPage - 1) * _historyPageSize;
+  var pageRecords = filtered.slice(startIdx, startIdx + _historyPageSize);
+
+  var html = "";
+
+  if(pageRecords.length === 0){
+    container.innerHTML = '<div class="card" style="text-align:center;padding:30px;"><p style="margin:0;font-size:15px;">No payment records found.</p><p style="margin:0;font-size:13px;color:var(--muted);">' +
+      (filtered.length === 0 ? "No records match your filters." : "") + '</p></div>';
+    renderPagination(filtered.length, totalPages);
+    return;
+  }
+
+  // Map from filtered index to original index
+  pageRecords.forEach(function(record){
+    var origIdx = paymentHistory.indexOf(record);
+    var weekLabel = record.week ? " · Week " + record.week : "";
 
     html +=
-    '<div class="card history-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0" data-hidx="' + i + '">' +
+    '<div class="card history-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">' +
       '<div style="display:flex;align-items:center;gap:14px;min-width:0">' +
         '<span class="av" style="background:' + getAvatarColor(record.student) + ';width:40px;height:40px;font-size:15px;border-radius:50%">' + getInitials(record.student) + '</span>' +
         '<div style="min-width:0">' +
-          "<strong style=\"font-size:15px\">" + record.student + "</strong>" +
-          "<div style=\"display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:2px\">" +
+          "<strong style=\"font-size:15px\">" + escHtml(record.student) + "</strong>" +
+          "<div style=\"display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:2px;flex-wrap:wrap;\">" +
             "<span>💰 ₱" + record.amount + "</span>" +
             "<span>📅 " + record.date + "</span>" +
             "<span>📁 " + record.month + "</span>" +
+            (weekLabel ? "<span>📆" + weekLabel + "</span>" : "") +
           "</div>" +
         "</div>" +
       "</div>" +
-      '<button class="ghost-btn" style="min-height:34px;height:34px;padding:0 12px;font-size:12px;flex-shrink:0" onclick="deleteHistoryPayment(' + i + ')" title="Delete record">🗑</button>' +
+      '<button class="ghost-btn" style="min-height:34px;height:34px;padding:0 12px;font-size:12px;flex-shrink:0" onclick="deleteHistoryPayment(' + origIdx + ')" title="Delete record">🗑</button>' +
     "</div>";
   });
 
-  container.innerHTML =
-  html ||
-  `<div class="card">
-    No payment records found.
-  </div>`;
+  container.innerHTML = html;
+  renderPagination(filtered.length, totalPages);
+}
+
+function renderPagination(totalRecords, totalPages){
+  var el = $("historyPagination");
+  if(!el) return;
+  if(totalPages <= 1 && totalRecords <= _historyPageSize){
+    el.style.display = "none";
+    return;
+  }
+  el.style.display = "flex";
+  el.innerHTML =
+    '<button class="ghost-btn" onclick="prevHistoryPage()" style="font-size:12px;padding:4px 14px;"' + (_historyPage <= 1 ? ' disabled' : '') + '>← Prev</button>' +
+    '<span style="font-size:12px;color:var(--muted);padding:4px 8px;">Page ' + _historyPage + ' of ' + totalPages + ' (' + totalRecords + ' records)</span>' +
+    '<button class="ghost-btn" onclick="nextHistoryPage()" style="font-size:12px;padding:4px 14px;"' + (_historyPage >= totalPages ? ' disabled' : '') + '>Next →</button>';
+}
+
+function nextHistoryPage(){
+  _historyPage++;
+  renderHistory();
+}
+
+function prevHistoryPage(){
+  _historyPage--;
+  if(_historyPage < 1) _historyPage = 1;
+  renderHistory();
+}
+
+function setHistoryMonthFilter(val){
+  _historyMonthFilter = val || "";
+  _historyPage = 1;
+  renderHistory();
+}
+
+function setHistoryDateFilter(){
+  _historyDateFrom = $("historyDateFrom")?.value || "";
+  _historyDateTo = $("historyDateTo")?.value || "";
+  _historyPage = 1;
+  renderHistory();
 }
 
 function deleteHistoryPayment(index){
   var record = paymentHistory[index];
   if(!record) return;
-  var backup = {...record};
-  paymentHistory.splice(index, 1);
-  localStorage.setItem("paymentHistory", JSON.stringify(paymentHistory));
-  renderHistory();
-  showUndoToast("Payment record deleted", function(){
-    paymentHistory.splice(index, 0, backup);
+  showConfirmDialog('<p style="margin:0;">Delete this payment record for <strong>' + escHtml(record.student) + '</strong>?</p>', function(){
+    var backup = {...record};
+    paymentHistory.splice(index, 1);
     localStorage.setItem("paymentHistory", JSON.stringify(paymentHistory));
     renderHistory();
-    showToast("Payment record restored", "success");
-  }, 4000);
+    showUndoToast("Payment record deleted", function(){
+      paymentHistory.splice(index, 0, backup);
+      localStorage.setItem("paymentHistory", JSON.stringify(paymentHistory));
+      renderHistory();
+      showToast("Payment record restored", "success");
+    }, 4000);
+  });
 }
 
 function checkMonthReset(){
@@ -2718,17 +3082,11 @@ function checkMonthReset(){
     student.payments.forEach(payment=>{
 
       paymentHistory.push({
-
         student: student.name,
-
         amount: payment.amount,
-
         date: payment.date,
-
-        month:
-        payment.month ||
-        savedMonth
-
+        month: payment.month || savedMonth,
+        week: payment.week || ""
       });
 
     });
@@ -2776,15 +3134,17 @@ function viewStudent(id){
   var pctCap = Math.min(pct, 100);
 
   var statusClass, statusLabel;
+  var payCount = (student.payments||[]).length;
   if(isStudentAdvanced(student)){ statusClass = "advanced"; statusLabel = "⭐ ADVANCED"; }
+  else if(payCount === 0){ statusClass = "none"; statusLabel = "⚪ NONE"; }
   else if(monthDebt > 0){ statusClass = "debt"; statusLabel = "🔴 DEBT"; }
   else { statusClass = "ok"; statusLabel = "🟢 OK"; }
-
   // Student info header
   $("studentInfo").innerHTML =
     '<div class="modal-student-header">' +
-      "<h2>" + student.name + "</h2>" +
+      "<h2>" + escHtml(student.name) + "</h2>" +
       '<span class="status-badge status-' + statusClass + '">' + statusLabel + "</span>" +
+
     "</div>" +
 
     '<div class="modal-student-stats">' +
@@ -2793,7 +3153,7 @@ function viewStudent(id){
       '<div class="modal-stat"><span class="modal-stat-label">Debt</span><span class="modal-stat-value">₱' + monthDebt + "</span></div>" +
     "</div>" +
     '<div class="modal-notes">' +
-      '<textarea class="modal-notes-input" id="notes-' + student.id + '" placeholder="Notes about this student..." onchange="saveStudentNotes(' + student.id + ')">' + (student.notes || "") + "</textarea>" +
+      '<textarea class="modal-notes-input" id="notes-' + student.id + '" placeholder="Notes about this student..." onchange="saveStudentNotes(' + student.id + ')">' + escHtml(student.notes || "") + "</textarea>" +
     "</div>" +
 
     '<div class="stu-progress stu-progress-lg">' +
@@ -3033,17 +3393,8 @@ function handleAddUnidentifiedFund(){
   var date = $("ufDate")?.value || "";
   var note = ($("ufNote")?.value || "").trim();
   if (!amount || amount <= 0) { showToast("Enter a valid amount", "error"); return; }
-  unidentifiedFunds.push({
-    id: "uf_" + Date.now() + "_" + Math.random().toString(36).slice(2,6),
-    amount: amount,
-    date: date || new Date().toISOString().slice(0,10),
-    note: note,
-    createdAt: Date.now()
-  });
-  save();
-  render();
+  addUnidentifiedFund(amount, date, note);
   closeModalById("addUnidentifiedModal");
-  showToast("Unidentified fund added", "success");
 }
 
 var _assignFundId = null;
@@ -3052,7 +3403,7 @@ function showAssignUnidentifiedModal(fundId){
   var fund = unidentifiedFunds.find(function(f){ return f.id === fundId; });
   if (!fund) return;
   _assignFundId = fundId;
-  $("assignFundInfo").textContent = "Assigning ₱" + toNumber(fund.amount).toLocaleString() + " — remaining: ₱" + toNumber(fund.amount).toLocaleString();
+  $("assignFundInfo").textContent = "Assigning ₱" + toNumber(fund.amount).toLocaleString() + " — available: ₱" + toNumber(fund.amount).toLocaleString();
   var select = $("assignStudentSelect");
   if (!select) return;
   select.innerHTML = '<option value="">Select student...</option>';
@@ -3069,9 +3420,12 @@ function handleAssignUnidentifiedFund(){
   var studentId = $("assignStudentSelect")?.value;
   var assignAmount = toNumber($("assignAmount")?.value);
   if (!studentId) { showToast("Select a student", "error"); return; }
-  assignUnidentifiedFund(fundId, studentId, assignAmount);
-  closeModalById("assignUnidentifiedModal");
-  _assignFundId = null;
+  if (!assignAmount || assignAmount <= 0) { showToast("Enter a valid amount", "error"); return; }
+  var ok = assignUnidentifiedFund(fundId, studentId, assignAmount);
+  if (ok) {
+    closeModalById("assignUnidentifiedModal");
+    _assignFundId = null;
+  }
 }
 
 function handleStudentCodeSubmit(){
@@ -3386,11 +3740,19 @@ function finishInit(){
     if(e.target === this) closeModalById("assignUnidentifiedModal");
   }, { passive: true });
 
-  // Hide skeleton, show content
-  var skel = $("dashSkeleton");
-  var content = $("dashContent");
-  if(skel) skel.style.display = "none";
-  if(content) content.style.display = "";
+  // Delegated clicks for unidentified widget
+  document.getElementById("unidentifiedWidgetBody").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    var item = btn.closest(".uf-item");
+    if (!item) return;
+    var id = item.getAttribute("data-ufid");
+    if (btn.classList.contains("uf-btn-assign")) {
+      showAssignUnidentifiedModal(id);
+    } else if (btn.classList.contains("uf-btn-delete")) {
+      deleteUnidentifiedFund(id);
+    }
+  });
 
   showPage("dashboard");
 
@@ -3410,51 +3772,51 @@ function finishInit(){
 function exportExcelBackupSafe(){
   try{
     if(typeof window.exportExcelBackup !== "function"){
-      alert("Excel export failed: export function not available.");
+      showToast("Excel export failed: export function not available.", "error");
       return;
     }
 
     const provider = window.localStorageExcelDataProvider;
     if(!provider){
-      alert("Excel export failed: data provider not found.");
+      showToast("Excel export failed: data provider not found.", "error");
       return;
     }
 
     exportExcelBackup(provider)
       .then(()=>{
-        alert("Excel backup exported successfully.");
+        showToast("Excel backup exported successfully.", "success");
       })
       .catch((err)=>{
         console.error(err);
-        alert("Excel export failed: " + (err?.message || String(err)));
+        showToast("Excel export failed: " + (err?.message || String(err)), "error");
       });
   }catch(err){
     console.error(err);
-    alert("Excel export failed: " + (err?.message || String(err)));
+    showToast("Excel export failed: " + (err?.message || String(err)), "error");
   }
 }
 
 function exportPDFBackupSafe(){
   try{
     if(typeof window.exportPDFBackup !== "function"){
-      alert("PDF export failed: export function not available.");
+      showToast("PDF export failed: export function not available.", "error");
       return;
     }
 
     const provider = window.localStorageExcelDataProvider;
     if(!provider){
-      alert("PDF export failed: data provider not found.");
+      showToast("PDF export failed: data provider not found.", "error");
       return;
     }
 
     window.exportPDFBackup(provider)
       .catch((err)=>{
         console.error(err);
-        alert("PDF export failed: " + (err?.message || String(err)));
+        showToast("PDF export failed: " + (err?.message || String(err)), "error");
       });
   }catch(err){
     console.error(err);
-    alert("PDF export failed: " + (err?.message || String(err)));
+    showToast("PDF export failed: " + (err?.message || String(err)), "error");
   }
 }
 
@@ -3655,16 +4017,21 @@ function getInitials(name){
 function editStudentName(id){
   var s = students.find(function(x){ return x.id === id; });
   if(!s) return;
-  var newName = prompt("Edit student name:", s.name);
-  if(newName && newName.trim()){
-    s.name = newName.trim();
-    save();
-    render();
-  }
+  var body = '<div style="display:grid;gap:8px"><label style="font-size:13px;font-weight:700">Edit Name</label><input id="editStudentNameInput" type="text" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:14px" value="' + escHtml(s.name) + '"></div>';
+  showConfirmDialog(body, function(){
+    var newName = $("editStudentNameInput")?.value?.trim();
+    if(newName){
+      s.name = newName;
+      save();
+      render();
+      showToast("Name updated", "success");
+    }
+  });
+  setTimeout(function(){ var el = $("editStudentNameInput"); if(el){ el.focus(); el.select(); } }, 100);
 }
 
 function toggleImport(){
-  var body = document.querySelector(".import-body");
+  var body = $("importBody");
   var toggle = document.querySelector(".import-toggle");
   if(!body) return;
   var isOpen = body.style.display !== "none";
@@ -3673,9 +4040,12 @@ function toggleImport(){
 }
 
 function toggleStudentHistory(id){
-  if(_expandedIds.has(id)) _expandedIds.delete(id);
-  else _expandedIds.add(id);
-  render();
+  var el = $("hist-" + id);
+  if(!el) return;
+  var isHidden = el.style.display === "none";
+  el.style.display = isHidden ? "" : "none";
+  var toggle = el.parentElement?.querySelector(".hist-toggle");
+  if(toggle) toggle.innerHTML = (isHidden ? "▼" : "▶") + ' <span class="hist-count">' + (el.textContent.trim() ? "" : "0") + "</span>";
 }
 
 function toggleMonthGroup(header){
@@ -3723,7 +4093,8 @@ function exportSelectedStudents(){
   sel.forEach(function(s){
     var total = getTotal(s);
     var debt = getMonthDebt(s);
-    var label = debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
+    var pc = (s.payments||[]).length;
+    var label = pc === 0 ? "No Payments" : debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
     report += s.name + " - Status: " + label + " - Paid: ₱" + total + " - Debt: ₱" + debt + "\n";
   });
   navigator.clipboard.writeText(report).then(function(){ showToast("Copied " + sel.length + " students", "success"); }).catch(function(){ showToast("Failed to copy", "error"); });
@@ -3735,8 +4106,9 @@ function exportSelectedCSV(){
   sel.forEach(function(s){
     var total = getTotal(s);
     var debt = getMonthDebt(s);
-    var status = debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
-    csv += '"' + s.name + '",' + total + ',' + debt + ',' + status + '\n';
+    var pc = (s.payments||[]).length;
+    var status = pc === 0 ? "No Payments" : debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
+    csv += '"' + escHtml(s.name) + '",' + total + ',' + debt + ',' + status + '\n';
   });
   var blob = new Blob([csv], {type:"text/csv"});
   var url = URL.createObjectURL(blob);
@@ -3753,7 +4125,7 @@ function payAll(amount){
     var date = now.toLocaleString();
     var month = now.toLocaleString("en-US",{month:"long",year:"numeric"});
     students.forEach(function(student){
-      student.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek() });
+      student.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek(), _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8) });
     });
     save();
     render();
@@ -3777,6 +4149,10 @@ function setExpenseCategoryFilter(val){
 function setExpenseDateFilter(){
   _expenseDateFrom = $("expenseDateFrom")?.value || "";
   _expenseDateTo = $("expenseDateTo")?.value || "";
+  renderExpenses();
+}
+function setExpenseTextFilter(val){
+  _expenseTextFilter = (val || "").toLowerCase().trim();
   renderExpenses();
 }
 function getExpenseCategoryTotals(){
@@ -3839,7 +4215,7 @@ function addModalPayment(id){
   var s = students.find(function(x){ return x.id === id; });
   if(!s) return;
   var now = new Date();
-  s.payments.push({ amount: amount, type: "Cash", date: now.toLocaleString(), month: now.toLocaleString("en-US",{month:"long",year:"numeric"}), week: getCurrentWeek() });
+  s.payments.push({ amount: amount, type: "Cash", date: now.toLocaleString(), month: now.toLocaleString("en-US",{month:"long",year:"numeric"}), week: getCurrentWeek(), _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8) });
   save();
   render();
   viewStudent(id);
@@ -4056,19 +4432,26 @@ function renderSparkline(){
   var canvas = $("sparkline");
   if(!canvas || !canvas.getContext || !archives.length) return;
   var ctx = canvas.getContext("2d");
-  var W = canvas.width, H = canvas.height;
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.getBoundingClientRect();
+  var cssW = rect.width || canvas.width, cssH = rect.height || canvas.height;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  ctx.scale(dpr, dpr);
+  var W = cssW, H = cssH;
   ctx.clearRect(0,0,W,H);
   if(archives.length < 2) return;
+  var months = archives.slice().reverse().map(function(a){ return a.month ? a.month.slice(0,3) : ""; });
   var vals = archives.slice().reverse().map(function(a){ return a.collected; });
   var max = Math.max(...vals, 1);
-  var pad = 0;
+  var pad = 20;
   var stepX = (W - pad*2) / (vals.length-1 || 1);
   ctx.strokeStyle = "#38bdf8";
   ctx.lineWidth = 1.5;
   var idx = 1;
   var dots = new Array(vals.length);
   for(var i = 0; i < vals.length; i++){
-    dots[i] = { x: pad + i * stepX, y: H - pad - ((vals[i] / max) * (H - pad*2)) };
+    dots[i] = { x: pad + i * stepX, y: H - pad - 4 - ((vals[i] / max) * (H - pad*2 - 8)) };
   }
   function animate(){
     if(idx >= vals.length) return;
@@ -4078,6 +4461,16 @@ function renderSparkline(){
       j === 0 ? ctx.moveTo(dots[j].x, dots[j].y) : ctx.lineTo(dots[j].x, dots[j].y);
     }
     ctx.stroke();
+    if (idx === vals.length - 1) {
+      ctx.fillStyle = "#9fb2cc";
+      ctx.font = "9px sans-serif";
+      ctx.textAlign = "center";
+      for (var k = 0; k < vals.length; k++) {
+        ctx.fillText(months[k], dots[k].x, H - 2);
+      }
+      ctx.textAlign = "right";
+      ctx.fillText("₱" + max.toLocaleString(), W, 10);
+    }
     idx++;
     requestAnimationFrame(animate);
   }
@@ -4087,7 +4480,13 @@ function renderExpenseTrendChart(){
   var canvas = $("expenseChart");
   if(!canvas || !canvas.getContext) return;
   var ctx = canvas.getContext("2d");
-  var W = canvas.width, H = canvas.height;
+  var dpr = window.devicePixelRatio || 1;
+  var rect = canvas.getBoundingClientRect();
+  var cssW = rect.width || canvas.width, cssH = rect.height || canvas.height;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  ctx.scale(dpr, dpr);
+  var W = cssW, H = cssH;
   ctx.clearRect(0,0,W,H);
   if(expenses.length < 2){ ctx.fillStyle = "#9fb2cc"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.fillText("More data needed",W/2,H/2); return; }
   var months = {};
@@ -4098,22 +4497,36 @@ function renderExpenseTrendChart(){
   var keys = Object.keys(months).sort();
   var vals = keys.map(function(k){ return months[k]; });
   var max = Math.max(...vals, 1);
-  var pad = 10;
+  var pad = 16;
   var barW = (W - pad*2) / keys.length * 0.7;
   var gap = (W - pad*2) / keys.length;
   ctx.fillStyle = "#fb7185";
   vals.forEach(function(v,i){
-    var barH = (v/max) * (H - pad*2);
-    ctx.fillRect(pad + i*gap + gap*0.15, H - pad - barH, barW, barH);
+    var barH = (v/max) * (H - pad*2 - 12);
+    ctx.fillRect(pad + i*gap + gap*0.15, H - pad - 6 - barH, barW, barH);
   });
+  ctx.fillStyle = "#9fb2cc";
+  ctx.font = "9px sans-serif";
+  ctx.textAlign = "center";
+  keys.forEach(function(k,i){
+    var label = k.slice(5) === "unknown" ? "" : k.slice(5) + "/" + k.slice(2,4);
+    ctx.fillText(label, pad + i*gap + gap*0.5, H - 2);
+  });
+  ctx.textAlign = "right";
+  ctx.fillText("₱" + max.toLocaleString(), W, 10);
 }
 function renderPageExpenseChart(){
   var canvas = $("expenseChartPage");
   if(!canvas || !canvas.getContext) return;
+  var rect = canvas.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
   var ctx = canvas.getContext("2d");
-  var W = canvas.width, H = canvas.height;
+  ctx.scale(dpr, dpr);
+  var W = rect.width, H = rect.height;
   ctx.clearRect(0,0,W,H);
-  if(expenses.length < 2){ ctx.fillStyle = "#9fb2cc"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.fillText("More data needed",W/2,H/2); return; }
+  if(expenses.length < 1){ ctx.fillStyle = "#9fb2cc"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.fillText("No expenses to chart",W/2,H/2); return; }
   var months = {};
   expenses.forEach(function(e){
     var m = e.date ? e.date.slice(0,7) : "unknown";
@@ -4122,13 +4535,32 @@ function renderPageExpenseChart(){
   var keys = Object.keys(months).sort();
   var vals = keys.map(function(k){ return months[k]; });
   var max = Math.max(...vals, 1);
-  var pad = 10;
+  var pad = 10, bottomPad = 24;
+  var availH = H - pad - bottomPad;
   var barW = (W - pad*2) / keys.length * 0.7;
   var gap = (W - pad*2) / keys.length;
   ctx.fillStyle = "#fb7185";
   vals.forEach(function(v,i){
-    var barH = (v/max) * (H - pad*2);
-    ctx.fillRect(pad + i*gap + gap*0.15, H - pad - barH, barW, barH);
+    var barH = (v/max) * (availH - pad);
+    var x = pad + i*gap + gap*0.15;
+    var y = availH - barH;
+    ctx.fillRect(x, y, barW, barH);
+    // Month label
+    ctx.fillStyle = "#9fb2cc";
+    ctx.font = "9px sans-serif";
+    ctx.textAlign = "center";
+    var label = keys[i];
+    if(label === "unknown"){
+      ctx.fillText("unknown", x + barW/2, H - 6);
+    }else{
+      var parts = label.split("-");
+      ctx.fillText(parts[0]+"/"+parts[1], x + barW/2, H - 6);
+    }
+    // Value label
+    ctx.fillStyle = "rgba(251,113,133,.85)";
+    ctx.font = "bold 9px sans-serif";
+    ctx.fillText("₱" + v.toLocaleString(), x + barW/2, y - 4);
+    ctx.fillStyle = "#fb7185";
   });
 }
 

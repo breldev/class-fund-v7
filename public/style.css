@@ -3424,10 +3424,7 @@ html.paused body::after {
     padding: 4px;
   }
 
-  .dash-skel-row { grid-template-columns: repeat(2,1fr); }
-}
-
-@media (max-width: 420px) {
+  @media (max-width: 420px) {
   .sidebar {
     left: 6px;
     right: 6px;
@@ -3487,12 +3484,6 @@ textarea:focus-visible,
 /* ============================================================
    DASHBOARD (Phase 4)
    ============================================================ */
-
-/* --- Skeleton --- */
-.dash-skeleton { display: grid; gap: 20px; }
-.dash-skel-hero { height: 140px; border-radius: var(--radius); }
-.dash-skel-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
-.dash-skel-card { height: 100px; border-radius: var(--radius); }
 
 /* --- Header --- */
 .dash-header {
@@ -3658,7 +3649,7 @@ textarea:focus-visible,
 /* --- Widget Grid --- */
 .dash-widgets {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4,1fr);
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -3706,6 +3697,7 @@ textarea:focus-visible,
   color: var(--text);
 }
 .dash-widget-body { padding: 14px 18px 18px; }
+.dash-widget-unidentified .dash-widget-body { max-height: 240px; overflow-y: auto; }
 
 /* --- Unidentified Fund Item --- */
 .uf-item {
@@ -3746,7 +3738,7 @@ textarea:focus-visible,
 /* --- Status Widget --- */
 .dash-status-row {
   display: grid;
-  grid-template-columns: repeat(3,1fr);
+  grid-template-columns: repeat(5,1fr);
   gap: 10px;
 }
 .dash-status-stat {
@@ -3766,6 +3758,7 @@ textarea:focus-visible,
 .dash-num-ok { color: var(--green); }
 .dash-num-debt { color: var(--rose); }
 .dash-num-adv { color: var(--amber); }
+.dash-num-none { color: var(--text-secondary); }
 .dash-status-label {
   display: block;
   margin-top: 6px;

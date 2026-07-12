@@ -92,16 +92,15 @@
       <!-- ============ MAIN CONTENT ============ -->
       <main class="main">
         <section id="page-dashboard" class="page active ui-animate">
-          <div id="dashSkeleton" class="dash-skeleton">
-            <div class="skeleton dash-skel-hero"></div>
-            <div class="skeleton dash-skel-row">
-              <div class="skeleton dash-skel-card"></div>
-              <div class="skeleton dash-skel-card"></div>
-              <div class="skeleton dash-skel-card"></div>
-              <div class="skeleton dash-skel-card"></div>
-            </div>
+          <div id="dashContent">
+
+          <!-- Empty State -->
+          <div id="dashEmpty" style="display:none;text-align:center;padding:60px 20px">
+            <div style="font-size:48px;margin-bottom:16px">👋</div>
+            <h2 style="margin:0 0 8px;font-size:20px">Welcome to Class Fund Auditor!</h2>
+            <p style="color:var(--text-secondary);margin:0 0 24px;font-size:14px">Add students to get started tracking your class fund.</p>
+            <button onclick="showPage('students')" style="padding:10px 24px;font-size:14px">Go to Students</button>
           </div>
-          <div id="dashContent" style="display:none;">
 
           <!-- Header -->
           <div class="dash-header">
@@ -247,6 +246,10 @@
                     <span class="dash-status-num dash-num-adv" id="advancedCount">0</span>
                     <span class="dash-status-label">Advanced</span>
                   </div>
+                  <div class="dash-status-stat">
+                    <span class="dash-status-num dash-num-none" id="noneCount">0</span>
+                    <span class="dash-status-label">No Payments</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -263,11 +266,11 @@
                 </div>
                 <div class="dash-insight">
                   <span class="dash-insight-dot" style="background:var(--blue)"></span>
-                  <span class="dash-insight-text">Event Fund: <strong>70%</strong></span>
+                  <span class="dash-insight-text">Event Fund: <strong id="insightEventAlloc">0%</strong></span>
                 </div>
                 <div class="dash-insight">
                   <span class="dash-insight-dot" style="background:var(--amber)"></span>
-                  <span class="dash-insight-text">Reserve Fund: <strong>30%</strong></span>
+                  <span class="dash-insight-text">Reserve Fund: <strong id="insightReserveAlloc">0%</strong></span>
                 </div>
               </div>
             </div>
@@ -316,7 +319,7 @@
               <span>📷 Import from Picture</span>
               <span class="import-toggle">▼</span>
             </div>
-            <div class="import-body">
+            <div class="import-body" id="importBody">
               <div class="import-copy">
                 <p>Upload a clear photo or screenshot, review the detected names, then import only when it looks right. - Pang import lang to ng student list heh</p>
               </div>
@@ -398,7 +401,7 @@
         <section id="page-payments" class="page ui-animate">
           <div class="page-header ui-animate">
             <h1>Payments</h1>
-            <p>Dito po yung individual or manual add ng payments :> </p>
+            <p>Record individual payments, manage bulk payments, and track weekly collections.</p>
           </div>
 
           <div class="card week-bar">
@@ -411,12 +414,15 @@
           <div class="card">
             <input id="paymentStudentSearch" placeholder="Search student..." oninput="debouncedPaymentSearch()">
             <select id="studentSelect" onchange="renderPaymentsForSelectedStudent()"></select>
-            <input id="paymentAmount" type="number" placeholder="Amount">
+            <input id="paymentAmount" type="number" min="0" placeholder="Amount">
             <button onclick="addPayment()">Add Payment</button>
           </div>
 
           <div class="card">
-            <h2 style="margin:0 0 10px; font-size:18px;">Selected Student Payments</h2>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <h2 style="margin:0;font-size:18px;">Selected Student Payments</h2>
+              <button onclick="copyStudentPayments()" class="ghost-btn" style="font-size:11px;padding:4px 12px;" title="Copy payments to clipboard">📋 Copy Payments</button>
+            </div>
             <div id="paymentTable" aria-live="polite"></div>
           </div>
 
@@ -427,8 +433,8 @@
             </div>
             <div id="bulkPaySection">
               <div class="bulk-toolbar">
-                <input id="bulkDefaultAmount" type="number" value="5" class="compact-input">
-                <button id="bulkFillAllBtn" onclick="bulkFillAll()">Set All to ₱5</button>
+                <input id="bulkDefaultAmount" type="number" min="0" value="5" class="compact-input">
+                <button id="bulkFillAllBtn" onclick="bulkFillAll()">Set All</button>
                 <span class="bulk-separator"></span>
                 <button onclick="bulkPayChecked()" class="btn-pay">✅ Pay Checked</button>
                 <button onclick="bulkPayAll()" class="btn-pay">💰 Pay All</button>
@@ -457,7 +463,7 @@
 
           <div class="card expense-form">
             <input id="expenseTitle" placeholder="Expense description">
-            <input id="expenseAmount" type="number" placeholder="Total amount">
+            <input id="expenseAmount" type="number" min="0" placeholder="Total amount">
             <div id="fundSplit" class="fund-split" style="display:none;">
               <input id="eventAmount" type="number" placeholder="From Event" class="split-input" oninput="updateSplitTotal()">
               <input id="reserveAmount" type="number" placeholder="From Reserve" class="split-input" oninput="updateSplitTotal()">
@@ -495,6 +501,7 @@
               <option value="Event">Event</option>
               <option value="Misc">Misc</option>
             </select>
+            <input type="text" id="expenseSearch" placeholder="🔍 Search expenses..." oninput="setExpenseTextFilter(this.value)" style="width:auto;flex:0 0 180px;">
             <label style="font-size:13px;font-weight:700;">From:</label>
             <input type="date" id="expenseDateFrom" onchange="setExpenseDateFilter()" style="flex:0 0 150px;">
             <label style="font-size:13px;font-weight:700;">To:</label>
@@ -547,32 +554,55 @@
         <section id="page-archive" class="page ui-animate">
           <div class="page-header ui-animate">
             <h1>Monthly Archive</h1>
-            <p>Dito naman po makikita yung monthly collections natin </p>
+            <p>Historical snapshots of monthly collections, expenses, and fund allocations.</p>
           </div>
 
+          <div id="archiveSummary"></div>
           <div id="archiveContainer"></div>
+          <div id="archiveTrash"></div>
         </section>
 
         <section id="page-analytics" class="page ui-animate">
           <div class="page-header ui-animate">
             <h1>Monthly Analytics</h1>
+            <p>Collection trends, best and worst months, and expense ratios over time.</p>
           </div>
 
           <div class="dashboard">
             <div class="card">Best Month<span id="bestMonth">-</span></div>
             <div class="card">Highest Collection<span id="highestCollection">₱0</span></div>
             <div class="card">Average Collection<span id="averageCollection">₱0</span></div>
+            <div class="card">Total Collected<span id="totalCollectedAll">₱0</span></div>
+            <div class="card">Worst Month<span id="worstMonth">-</span></div>
+            <div class="card">Expense Ratio<span id="expenseRatio">-</span></div>
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <h3 style="margin:0 0 8px;font-size:14px;">Collection Trend</h3>
+            <canvas id="trendChart" width="600" height="180" style="width:100%;height:auto;max-height:180px;display:block;"></canvas>
           </div>
         </section>
 
         <section id="page-history" class="page ui-animate">
           <div class="page-header ui-animate">
             <h1>Payment History</h1>
-            <p>View all payment records.- gagana lang po ito next month pag may previous data na tayo heh</p>
+            <p>View, search, and manage all payment records across all months.</p>
           </div>
 
+          <div class="card expense-filters" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <input type="text" id="historySearch" placeholder="🔍 Search by student name..." oninput="renderHistory()" style="width:auto;flex:0 0 200px;">
+            <select id="historyMonthFilter" onchange="setHistoryMonthFilter(this.value)" style="width:auto;flex:0 0 150px;">
+              <option value="">All Months</option>
+              <!-- populated dynamically -->
+            </select>
+            <label style="font-size:13px;font-weight:700;">From:</label>
+            <input type="date" id="historyDateFrom" onchange="setHistoryDateFilter()" style="flex:0 0 150px;">
+            <label style="font-size:13px;font-weight:700;">To:</label>
+            <input type="date" id="historyDateTo" onchange="setHistoryDateFilter()" style="flex:0 0 150px;">
+          </div>
 
           <div id="historyContainer"></div>
+          <div id="historyPagination" style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:16px;"></div>
         </section>
 
         <section id="page-reports" class="page ui-animate">
@@ -706,9 +736,9 @@
       <span class="close" onclick="closeModalById('addUnidentifiedModal')" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeModalById('addUnidentifiedModal')">✕</span>
       <h2 style="margin:0 0 6px;font-size:20px;font-weight:800">Add Unidentified Fund</h2>
       <p style="color:var(--text-secondary);font-size:12px;margin-bottom:16px">Record money received but don't know who paid yet</p>
-      <input id="ufAmount" type="number" placeholder="Amount" min="1" style="margin-bottom:10px">
-      <input id="ufDate" type="date" style="margin-bottom:10px">
-      <input id="ufNote" type="text" placeholder="Note (e.g., from treasurer, GCash)" style="margin-bottom:12px">
+      <input id="ufAmount" type="number" placeholder="Amount" min="1" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')handleAddUnidentifiedFund()">
+      <input id="ufDate" type="date" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')handleAddUnidentifiedFund()">
+      <input id="ufNote" type="text" placeholder="Note (e.g., from treasurer, GCash)" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')handleAddUnidentifiedFund()">
       <button onclick="handleAddUnidentifiedFund()" style="width:100%">Add Fund</button>
     </div>
   </div>
