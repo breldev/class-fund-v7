@@ -3417,7 +3417,7 @@ function showAssignUnidentifiedModal(fundId){
 
 function handleAssignUnidentifiedFund(){
   var fundId = _assignFundId;
-  var studentId = $("assignStudentSelect")?.value;
+  var studentId = toNumber($("assignStudentSelect")?.value);
   var assignAmount = toNumber($("assignAmount")?.value);
   if (!studentId) { showToast("Select a student", "error"); return; }
   if (!assignAmount || assignAmount <= 0) { showToast("Enter a valid amount", "error"); return; }
