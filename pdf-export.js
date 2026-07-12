@@ -89,16 +89,22 @@
     // Total collected
     var totalCollected = 0;
     students.forEach(function(s) {
-      var paid = 0;
-      paymentHistory.forEach(function(p) {
-        if (p.studentId === s.id) paid += toNumber(p.amount);
-      });
+      var paid = (s.payments||[]).reduce(function(sum, p) { return sum + toNumber(p.amount); }, 0);
       totalCollected += paid;
     });
+    var totalUnidentified = 0;
+    if (data.unidentifiedFunds) {
+      totalUnidentified = data.unidentifiedFunds.reduce(function(sum, f) { return sum + toNumber(f.amount); }, 0);
+    }
+    var totalCollectedWithUnidentified = totalCollected + totalUnidentified;
     text("Total Collected:", col1, y);
     doc.setFont("helvetica", "bold");
-    text("₱" + totalCollected.toLocaleString(), col2, y);
+    text("₱" + totalCollectedWithUnidentified.toLocaleString(), col2, y);
     doc.setFont("helvetica", "normal");
+    if (totalUnidentified > 0) {
+      y += 4;
+      text("(₱" + totalCollected.toLocaleString() + " identified + ₱" + totalUnidentified.toLocaleString() + " unidentified)", col1, y);
+    }
     y += 10;
 
     // Divider
@@ -130,12 +136,13 @@
     students.forEach(function(s) {
       if (y > 270) { doc.addPage(); y = margin + 10; }
 
-      var paid = 0;
-      paymentHistory.forEach(function(p) {
-        if (p.studentId === s.id) paid += toNumber(p.amount);
-      });
+      var paid = (s.payments||[]).reduce(function(sum, p) { return sum + toNumber(p.amount); }, 0);
       var weeks = Math.floor(paid / (fee || 1));
-      var debt = Math.max(0, (cur - weeks) * fee);
+      var validWeeksCount = 0;
+      for (var w = 1; w <= cur; w++) {
+        if (data.skippedWeeks && data.skippedWeeks.indexOf(w) === -1) validWeeksCount++;
+      }
+      var debt = Math.max(0, (validWeeksCount - weeks) * fee);
 
       text(s.name, margin, y);
       text("₱" + paid.toLocaleString(), margin + 70, y);
@@ -172,7 +179,7 @@
     var totalExpenses = 0;
     expenses.forEach(function(e) {
       if (y > 270) { doc.addPage(); y = margin + 10; }
-      text(e.description || "(no desc)", margin, y);
+      text(e.title || "(no title)", margin, y);
       text(e.category || "—", margin + 80, y);
       var amt = toNumber(e.amount);
       text("₱" + amt.toLocaleString(), margin + 130, y);
@@ -187,7 +194,7 @@
     y += 8;
 
     // Balance
-    var balance = totalCollected + getTotalUnidentified() - totalExpenses;
+    var balance = totalCollectedWithUnidentified - totalExpenses;
     y += 2;
     doc.setFont("helvetica", "bold");
     text("Net Balance:", margin, y);

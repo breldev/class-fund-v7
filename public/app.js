@@ -218,10 +218,11 @@ function getAvatarColor(name){
 // ================= SEARCH HIGHLIGHT =================
 function highlightText(text, search){
   if(!search||!text) return text||'';
+  var escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   try{
     var re = new RegExp('('+search.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-    return text.replace(re,'<mark class="hl">$1</mark>');
-  }catch(e){return text;}
+    return escaped.replace(re,'<mark class="hl">$1</mark>');
+  }catch(e){return escaped;}
 }
 
 // ================= PAGINATION =================
@@ -778,7 +779,8 @@ function addPayment(){
       month:"long",
       year:"numeric"
     }),
-    week: getCurrentWeek()
+    week: getCurrentWeek(),
+    _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
   });
 
   $("paymentAmount").value = "";
@@ -839,7 +841,8 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
     amount: assignAmount,
     type: "Cash",
     date: now.toLocaleString(),
-    month: now.toLocaleString("en-US", {month: "long", year: "numeric"})
+    month: now.toLocaleString("en-US", {month: "long", year: "numeric"}),
+    _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
   });
 
   var remaining = fund.amount - assignAmount;
@@ -933,13 +936,16 @@ async function addExpense(){
     return;
   }
 
+  const category = $("expenseCategory")?.value || "Misc";
+
   const expense = {
     id: Date.now(),
     title,
     amount,
     date,
     fund,
-    receipt
+    receipt,
+    category
   };
 
   if(fund === "both"){
@@ -984,7 +990,7 @@ function editExpense(id){
   var body =
     '<div style="display:grid;gap:10px;">' +
       '<label style="font-size:13px;font-weight:700;">Description</label>' +
-      '<input id="editExpTitle" value="' + (e.title||"").replace(/"/g,"&quot;") + '">' +
+      '<input id="editExpTitle" value="' + (e.title||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;") + '">' +
       '<label style="font-size:13px;font-weight:700;">Amount</label>' +
       '<input id="editExpAmount" type="number" value="' + e.amount + '">' +
       '<label style="font-size:13px;font-weight:700;">Date</label>' +
@@ -1077,19 +1083,26 @@ function renderExpenses(){
 
   tbody.innerHTML = filtered
     .slice()
-    .sort((a,b) => new Date(b.date) - new Date(a.date))
+    .sort((a,b) => {
+      var da = a.date ? new Date(a.date) : null, db = b.date ? new Date(b.date) : null;
+      if(da && db) return db - da;
+      if(da) return -1;
+      if(db) return 1;
+      return b.id - a.id;
+    })
     .map(expense => {
       const fund = expense.fund || "event";
       let fundLabel;
       if(fund === "both"){
-        fundLabel = "🎉 ₱" + expense.eventAmount + " + 🏦 ₱" + expense.reserveAmount;
+        fundLabel = "🎉 ₱" + toNumber(expense.eventAmount||0) + " + 🏦 ₱" + toNumber(expense.reserveAmount||0);
       }else{
         fundLabel = fund === "event" ? "🎉 Event" : "🏦 Reserve";
       }
+      var escExpTitle = (expense.title||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
       return `
         <tr>
           <td>${expense.date || "-"}</td>
-          <td>${expense.title}</td>
+          <td>${escExpTitle}</td>
           <td><span class="chip" style="background:rgba(99,102,241,.08);color:var(--accent-300);border-color:rgba(99,102,241,.12);padding:2px 10px;font-size:10px">${expense.category || "Misc"}</span></td>
           <td>₱${toNumber(expense.amount).toLocaleString()}</td>
           <td><span class="fund-badge fund-${fund}">${fundLabel}</span></td>
@@ -1097,7 +1110,7 @@ function renderExpenses(){
             ${
               expense.receipt
                 ? `<button class="receipt-link" onclick="openReceiptModal(${expense.id})">
-                    <img class="receipt-thumb" src="${expense.receipt}" alt="Receipt for ${expense.title}">
+                    <img class="receipt-thumb" src="${expense.receipt}" alt="Receipt for ${escExpTitle}">
                   </button>`
                 : `<span class="muted-text" style="font-size:11px">No receipt</span>`
             }
@@ -1148,6 +1161,7 @@ function deleteStudent(id){
   if(!s) return;
   showConfirmDialog("Delete <strong>" + s.name + "</strong> and all their payments?", function(){
     students = students.filter(function(x){return x.id!==id;});
+    _selectedStudentIds.delete(id);
     save();
     render();
     showToast("Deleted " + s.name, "success");
@@ -1158,14 +1172,18 @@ function deletePayment(id,i){
   const s = students.find(x=>x.id===id);
   if(!s || !s.payments[i]) return;
   const backup = {...s.payments[i]};
+  const uid = backup._uid;
   s.payments.splice(i, 1);
   save();
   render();
   if(_modalStudentId && $("studentModal")?.style.display === "flex") viewStudent(_modalStudentId);
   showUndoToast("Payment deleted", function(){
-    s.payments.splice(i, 0, backup);
+    if(uid && s.payments.some(function(p){ return p._uid === uid; })) return;
+    var insertAt = Math.min(i, s.payments.length);
+    s.payments.splice(insertAt, 0, backup);
     save();
     render();
+    if(_modalStudentId && $("studentModal")?.style.display === "flex") viewStudent(_modalStudentId);
     showToast("Payment restored", "success");
   }, 4000);
 }
@@ -1258,7 +1276,7 @@ function render(){
     filtered = filtered.filter(function(s){
       var md = getMonthDebt(s);
       if(_statusFilter === "updated") return md === 0 && (s.payments||[]).length > 0;
-      if(_statusFilter === "debt") return md > 0;
+      if(_statusFilter === "debt") return md > 0 && (s.payments||[]).length > 0;
       if(_statusFilter === "none") return !(s.payments||[]).length;
       if(_statusFilter === "advanced") return isStudentAdvanced(s);
       return true;
@@ -1276,7 +1294,7 @@ function render(){
         case "paid": va = ta; vb = tb; break;
         case "month": va = getMonthPayments(a); vb = getMonthPayments(b); break;
         case "debt": va = da; vb = db; break;
-        case "status": va = da > 0 ? 0 : 1; vb = db > 0 ? 0 : 1; break;
+        case "status": va = isStudentAdvanced(a) ? 2 : da > 0 ? 0 : (a.payments||[]).length > 0 ? 1 : -1; vb = isStudentAdvanced(b) ? 2 : db > 0 ? 0 : (b.payments||[]).length > 0 ? 1 : -1; break;
         default: return 0;
       }
       return va < vb ? -_sortDir : va > vb ? _sortDir : 0;
@@ -1299,9 +1317,9 @@ function render(){
     var md = getMonthDebt(s);
     var pc = (s.payments||[]).length;
     if(isStudentAdvanced(s)) { groups.advanced.push(s); counts.advanced++; }
-    else if(pc > 0 && md === 0) { groups.updated.push(s); counts.updated++; }
+    else if(pc === 0) { groups.none.push(s); counts.none++; }
     else if(md > 0) { groups.debt.push(s); counts.debt++; }
-    else { groups.none.push(s); counts.none++; }
+    else { groups.updated.push(s); counts.updated++; }
     totalCollected += getTotal(s);
     totalDebtOwed += md;
   });
@@ -1361,6 +1379,7 @@ function render(){
 
       var statusClass, statusLabel;
       if(isStudentAdvanced(s)){ statusClass = "advanced"; statusLabel = "⭐ ADVANCED"; }
+      else if(payCount === 0){ statusClass = "none"; statusLabel = "⚪ NONE"; }
       else if(monthDebt > 0){ statusClass = "debt"; statusLabel = "🔴 DEBT"; }
       else { statusClass = "ok"; statusLabel = "🟢 OK"; }
 
@@ -1503,9 +1522,11 @@ function render(){
     var pc = (s.payments||[]).length;
     if (isStudentAdvanced(s)) {
       dashAdvanced++;
-    } else if(pc > 0 && md === 0) {
+    } else if(pc === 0) {
+      /* none — no stat slot for this on dashboard */
+    } else if(md === 0) {
       dashUpdated++;
-    } else if(md > 0) {
+    } else {
       dashDebt++;
     }
   });
@@ -1882,6 +1903,7 @@ function copyReport(){
   let updatedCount = 0;
   let advancedCount = 0;
   let debtCount = 0;
+  let noneCount = 0;
 
   const currentMonth = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
   let studentStatusSection = `\r\n📋 STUDENT PAYMENT STATUS (${currentMonth})\r\n`;
@@ -1892,20 +1914,25 @@ function copyReport(){
   sorted.forEach(s => {
     const totalPaid = getTotal(s);
     const monthDebt = getMonthDebt(s);
+    const payCount = (s.payments||[]).length;
 
     totalCollected += totalPaid;
 
     let statusIcon = "";
     let statusLabel = "";
 
-    if(monthDebt > 0){
-      statusIcon = "🔴";
-      statusLabel = "WITH DEBT";
-      debtCount++;
-    }else if(totalPaid > validWeeks * weeklyFee){
+    if(isStudentAdvanced(s)){
       statusIcon = "⭐";
       statusLabel = "ADVANCED";
       advancedCount++;
+    }else if(payCount === 0){
+      statusIcon = "⚪";
+      statusLabel = "NO PAYMENTS";
+      noneCount++;
+    }else if(monthDebt > 0){
+      statusIcon = "🔴";
+      statusLabel = "WITH DEBT";
+      debtCount++;
     }else{
       statusIcon = "🟢";
       statusLabel = "UPDATED";
@@ -1953,13 +1980,19 @@ function copyReport(){
   if(expenses && expenses.length){
     expenses
       .slice()
-      .sort((a,b)=> new Date(b.date) - new Date(a.date))
+      .sort((a,b) => {
+        var da = a.date ? new Date(a.date) : null, db = b.date ? new Date(b.date) : null;
+        if(da && db) return db - da;
+        if(da) return -1;
+        if(db) return 1;
+        return b.id - a.id;
+      })
       .forEach(expense => {
         const title = expense.title || "";
         const amt = toNumber(expense.amount);
         let fund;
         if(expense.fund === "both"){
-          fund = `Event: ₱${expense.eventAmount}, Reserve: ₱${expense.reserveAmount}`;
+          fund = `Event: ₱${toNumber(expense.eventAmount||0)}, Reserve: ₱${toNumber(expense.reserveAmount||0)}`;
         }else{
           fund = (expense.fund || "event") === "event" ? "Event" : "Reserve";
         }
@@ -1986,6 +2019,7 @@ Remaining Collection (All Time): ₱${remainingAfterCollected}${totalUnidentifie
 ⭐ Advanced: ${advancedCount}
 🟢 Fully Updated: ${updatedCount}
 🔴 With Remaining Weeks: ${debtCount}
+⚪ No Payments: ${noneCount}
 
 ${studentStatusSection}
 
@@ -1993,6 +2027,7 @@ SUMMARY
 ⭐ Advanced: ${advancedCount}
 🟢 Fully Updated: ${updatedCount}
 🔴 With Remaining Weeks: ${debtCount}
+⚪ No Payments: ${noneCount}
 
 FUND BREAKDOWN
 🎉 Event Fund Allocated: ₱${grossEventFund}
@@ -2013,8 +2048,8 @@ Generated: ${new Date().toLocaleString()}
 `;
 
   navigator.clipboard.writeText(report)
-    .then(()=> alert("nakopya na po. salamat ha :D"))
-    .catch(()=> alert("Copy failed"));
+    .then(()=> showToast("Report copied!", "success"))
+    .catch(()=> showToast("Copy failed", "error"));
 }
 
 // ================= NEW FEATURE: SHORT WEEKLY REPORT =================
@@ -2084,17 +2119,21 @@ function copyShortReport(){
   let updatedCount = 0;
   let advancedCount = 0;
   let debtCount = 0;
+  let noneCount = 0;
 
   sorted.forEach(s => {
     const totalPaid = getTotal(s);
     const monthDebt = getMonthDebt(s);
+    const payCount = (s.payments||[]).length;
 
     totalCollected += totalPaid;
 
-    if(monthDebt > 0){
-      debtCount++;
-    }else if(totalPaid > validWeeks * weeklyFee){
+    if(isStudentAdvanced(s)){
       advancedCount++;
+    }else if(payCount === 0){
+      noneCount++;
+    }else if(monthDebt > 0){
+      debtCount++;
     }else{
       updatedCount++;
     }
@@ -2114,7 +2153,8 @@ function copyShortReport(){
 "Week: " + cur + "\n\n" +
 "⭐ Advanced: " + advancedCount + "\n" +
 "🟢 Paid This Month: " + updatedCount + "\n" +
-"🔴 With Debt This Month: " + debtCount + "\n\n" +
+"🔴 With Debt This Month: " + debtCount + "\n" +
+"⚪ No Payments: " + noneCount + "\n\n" +
 summaryParts.join("\n") + "\n\n" +
 "Generated: " + generated;
 
@@ -2122,7 +2162,7 @@ summaryParts.join("\n") + "\n\n" +
     .then(()=>{
       showToast("Short report copied!", "success");
     })
-    .catch(()=> alert("Copy failed"));
+    .catch(()=> showToast("Copy failed", "error"));
 }
 
 // ================= GC REMINDER =================
@@ -2142,7 +2182,9 @@ function copyGCReminder(){
   var advanced = [];
   var paid = [];
   var unpaid = [];
+  var none = [];
   var unpaidTotal = 0;
+  var noneTotal = 0;
 
   var sorted = (students || []).slice().sort(function(a,b){
     var na = (a.name || "").toLowerCase();
@@ -2152,14 +2194,18 @@ function copyGCReminder(){
 
   sorted.forEach(function(s){
     var totalPaid = getTotal(s);
-    var weeksCovered = Math.floor(totalPaid / fee);
+    var weeksCovered = totalPaid > 0 ? Math.floor(totalPaid / fee) : 0;
     var md = getMonthDebt(s);
+    var payCount = (s.payments||[]).length;
     totalCollected += totalPaid;
 
     if (md === 0 && totalPaid > validWeeks * fee) {
       advanced.push({ name: s.name, totalPaid: totalPaid, weeksCovered: weeksCovered });
     } else if (md === 0) {
       paid.push({ name: s.name, totalPaid: totalPaid, weeksCovered: weeksCovered });
+    } else if (payCount === 0) {
+      none.push({ name: s.name, debt: md, weeksCovered: weeksCovered });
+      noneTotal += md;
     } else {
       unpaid.push({ name: s.name, debt: md, weeksCovered: weeksCovered });
       unpaidTotal += md;
@@ -2187,8 +2233,13 @@ function copyGCReminder(){
   lines.push("");
   lines.push("✅ PAID (" + paid.length + ") — fully paid");
   lines.push(fmt(paid, function(s){ return s.name + " — PHP " + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  if (none.length) {
+    lines.push("");
+    lines.push("⚪ NO PAYMENTS (" + none.length + ") — PHP " + noneTotal.toLocaleString() + " total owed");
+    lines.push(fmt(none, function(s){ return s.name + " — owe PHP " + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  }
   lines.push("");
-  lines.push("🔴 UNPAID (" + unpaid.length + ") — PHP " + unpaidTotal.toLocaleString() + " total owed");
+  lines.push("🔴 UNPAID (" + unpaid.length + ") — PHP " + (unpaidTotal + noneTotal).toLocaleString() + " total owed");
   lines.push(fmt(unpaid, function(s){ return s.name + " — owe PHP " + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   lines.push("");
   lines.push("Please settle your class fund contribution as soon as possible.");
@@ -2197,7 +2248,7 @@ function copyGCReminder(){
 
   navigator.clipboard.writeText(lines.join("\n"))
     .then(function(){ showToast("GC reminder copied!", "success"); })
-    .catch(function(){ alert("Copy failed"); });
+    .catch(function(){ showToast("Copy failed", "error"); });
 }
 
 
@@ -2206,6 +2257,7 @@ function exportBackup(){
   const data = {
     students: students || [],
     startDate: startDate || null,
+    weeklyFee: weeklyFee || 5,
     skippedWeeks: skippedWeeks || [],
     manualWeekOverride: manualWeekOverride || null,
     archives: archives || [],
@@ -2255,6 +2307,10 @@ function importBackup(event){
         }
         students = data.students || [];
         startDate = data.startDate || null;
+        if (typeof data.weeklyFee === "number" && data.weeklyFee > 0) {
+          weeklyFee = data.weeklyFee;
+          localStorage.setItem("weeklyFee", weeklyFee);
+        }
         skippedWeeks = Array.isArray(data.skippedWeeks) ? data.skippedWeeks : [];
         archives = Array.isArray(data.archives) ? data.archives : [];
         paymentHistory = Array.isArray(data.paymentHistory) ? data.paymentHistory : [];
@@ -2292,7 +2348,7 @@ function importBackup(event){
       }catch(error){
         console.error(error);
         var msg = error.message || String(error);
-        alert("Could not import backup.\n" + msg);
+        showToast("Could not import backup: " + msg, "error");
       }finally{
         event.target.value = "";
       }
@@ -2755,7 +2811,7 @@ function viewStudent(id){
       "</div>" +
       '<div id="modalPayList">';
 
-  if(!student.payments.length){
+  if(!(student.payments||[]).length){
     paymentHtml += '<div class="muted-text">No payments recorded.</div>';
   } else {
     student.payments.forEach(function(p,i){
@@ -3254,11 +3310,10 @@ function finishInit(){
     window.exportExcelBackupSafe = window.exportExcelBackupSafe;
   }
 
-  // Show/hide PDF export button based on feature flag
+  // Show/hide PDF export button based on jsPDF availability
   var pdfBtn = document.getElementById("exportPdfBtn");
   if (pdfBtn) {
-    var pdfEnabled = window.classSettings && window.classSettings.features && window.classSettings.features.pdfExport === true;
-    pdfBtn.style.display = pdfEnabled ? "" : "none";
+    pdfBtn.style.display = (typeof window.jspdf === "object" || typeof window.jsPDF === "function") ? "" : "none";
   }
 
   render();
@@ -3664,24 +3719,22 @@ function clearSelection(){
 function exportSelectedStudents(){
   var sel = students.filter(function(s){ return _selectedStudentIds.has(s.id); });
   if(!sel.length){ showToast("No students selected", "error"); return; }
-  var cur = getCurrentWeek();
   var report = "Selected Students Report\n\n";
   sel.forEach(function(s){
     var total = getTotal(s);
-    var debt = getMonthDebt ? getMonthDebt(s) : 0;
+    var debt = getMonthDebt(s);
     var label = debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
     report += s.name + " - Status: " + label + " - Paid: ₱" + total + " - Debt: ₱" + debt + "\n";
   });
-  navigator.clipboard.writeText(report).then(function(){ showToast("Copied " + sel.length + " students", "success"); });
+  navigator.clipboard.writeText(report).then(function(){ showToast("Copied " + sel.length + " students", "success"); }).catch(function(){ showToast("Failed to copy", "error"); });
 }
 function exportSelectedCSV(){
   var sel = students.filter(function(s){ return _selectedStudentIds.has(s.id); });
   if(!sel.length){ showToast("No students selected", "error"); return; }
-  var cur = getCurrentWeek();
   var csv = "Name,Paid,Debt,Status\n";
   sel.forEach(function(s){
     var total = getTotal(s);
-    var debt = getMonthDebt ? getMonthDebt(s) : 0;
+    var debt = getMonthDebt(s);
     var status = debt > 0 ? "Debt" : isStudentAdvanced(s) ? "Advanced" : "OK";
     csv += '"' + s.name + '",' + total + ',' + debt + ',' + status + '\n';
   });
@@ -3744,9 +3797,10 @@ function toggleReceiptGallery(){
   el.style.display = isOpen ? "none" : "grid";
   if(!isOpen){
     el.innerHTML = expenses.filter(function(e){ return e.receipt; }).map(function(e){
+      var escTitle = (e.title||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
       return '<div class="receipt-gallery-item" onclick="openReceiptModal(' + e.id + ')">' +
-        '<img src="' + e.receipt + '" alt="' + e.title + '">' +
-        '<span>' + e.title + '</span></div>';
+        '<img src="' + e.receipt + '" alt="' + escTitle + '">' +
+        '<span>' + escTitle + '</span></div>';
     }).join("") || '<p class="muted-text">No receipts uploaded yet.</p>';
   }
 }

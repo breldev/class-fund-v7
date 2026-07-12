@@ -24,8 +24,9 @@
     }
   }
 
-  function getStatusLabel(weeks, debt, cur) {
+  function getStatusLabel(weeks, debt, cur, payCount) {
     if (weeks > cur) return "\u2B50 Advanced";
+    if (payCount === 0) return "\u26AA No Payments";
     if (debt > 0) return "\uD83D\uDD34 With Remaining Weeks";
     return "\uD83D\uDFE2 Fully Updated";
   }
@@ -89,17 +90,24 @@
     let totalDebtAll = 0;
     let fullyUpdatedCount = 0;
     let withRemainingCount = 0;
+    let advancedCount = 0;
+    let noneCount = 0;
 
     const studentRows = [];
     for (const s of studentsSorted) {
       const totalPaid = getTotalPaidForStudent(s);
       const weeks = getWeeksCovered(totalPaid);
       const debt = getDebt(weeks);
+      const payCount = (Array.isArray(s.payments) ? s.payments : []).length;
       totalPaidAll += totalPaid;
       totalDebtAll += debt;
 
-      const status = getStatusLabel(weeks, debt, cur);
-      if (debt > 0) {
+      const status = getStatusLabel(weeks, debt, cur, payCount);
+      if (weeks > cur) {
+        advancedCount++;
+      } else if (payCount === 0) {
+        noneCount++;
+      } else if (debt > 0) {
         withRemainingCount++;
       } else {
         fullyUpdatedCount++;
@@ -187,8 +195,10 @@
       ["Total Collected", totalCollected],
       ["Expected Collection", expected],
       ["Remaining Collection", remainingCollection],
+      ["Advanced", advancedCount],
       ["Fully Updated", fullyUpdatedCount],
       ["With Remaining Weeks", withRemainingCount],
+      ["No Payments", noneCount],
       ["Total Expenses", totalExpenses],
       ["Net Balance", netBalance],
       ["Unidentified Funds", totalUnidentified],
@@ -209,9 +219,9 @@
     wsDashboard['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
       { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
-      { s: { r: 15, c: 0 }, e: { r: 15, c: 1 } },
+      { s: { r: 17, c: 0 }, e: { r: 17, c: 1 } },
     ];
-    const moneyRows = [6, 7, 8, 11, 12, 13, 18, 19, 20, 23, 24, 25];
+    const moneyRows = [6, 7, 8, 13, 14, 15, 20, 21, 22, 25, 26, 27];
     for (const r of moneyRows) {
       const addr = XLSX.utils.encode_cell({ r: r, c: 1 });
       if (wsDashboard[addr] && wsDashboard[addr].t === 'n') wsDashboard[addr].z = CURR;
@@ -221,7 +231,13 @@
     XLSX.utils.book_append_sheet(wb, wsDashboard, "Dashboard");
 
     // ===== Sheet 2: Unidentified Funds =====
-    const unidentifiedRows = unidentifiedFunds.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const unidentifiedRows = unidentifiedFunds.slice().sort((a, b) => {
+      var da = a.date ? new Date(a.date) : null, db = b.date ? new Date(b.date) : null;
+      if (da && db) return db - da;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    });
     const unidentifiedSheetRows = unidentifiedRows.map(function(f){
       return {
         "Date": safeString(f.date),
@@ -308,7 +324,13 @@
     XLSX.utils.book_append_sheet(wb, wsPayments, "Payments");
 
     // ===== Sheet 6: Expenses =====
-    const expensesSorted = expenses.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const expensesSorted = expenses.slice().sort((a, b) => {
+      var da = a.date ? new Date(a.date) : null, db = b.date ? new Date(b.date) : null;
+      if (da && db) return db - da;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    });
     const expenseRows = [];
     let totalExpensesAll = 0;
     for (const e of expensesSorted) {
