@@ -1166,6 +1166,11 @@ function setAssessmentFilter(f){
 function setAssessmentSearch(value){
   _assessmentSearch = value.toLowerCase().trim();
   renderAssessmentRecorder();
+  var input = $("assessSearch");
+  if(input){
+    input.focus();
+    input.selectionStart = input.selectionEnd = input.value.length;
+  }
 }
 
 // ================= ASSESSMENT HISTORY =================
