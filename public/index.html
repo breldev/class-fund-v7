@@ -157,6 +157,13 @@
                 <span class="dash-metric-value dash-value-expenses" id="dashTotalExpenses">₱0</span>
               </div>
             </div>
+            <div class="dash-metric dash-metric-assessments">
+              <div class="dash-metric-icon" style="background:rgba(139,92,246,.12);color:#a78bfa"><i data-lucide="clipboard-list"></i></div>
+              <div class="dash-metric-body">
+                <span class="dash-metric-label">Special Assessments</span>
+                <span class="dash-metric-value" id="dashSpecialAssessments">₱0</span>
+              </div>
+            </div>
           </div>
 
           <!-- Progress Bar -->
@@ -422,7 +429,7 @@
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
               <h2 style="margin:0;font-size:18px;">Selected Student Payments</h2>
               <button onclick="copyStudentPayments()" class="ghost-btn" style="font-size:11px;padding:4px 12px;" title="Copy payments to clipboard">📋 Copy Payments</button>
-            </div>
+              </div>
             <div id="paymentTable" aria-live="polite"></div>
           </div>
 
@@ -445,8 +452,15 @@
               </div>
             </div>
           </div>
-        </section>
 
+          <div class="card">
+            <h2 style="margin:0 0 6px;font-size:18px;">📋 Record Special Assessment</h2>
+            <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">One-time extra contributions (e.g., project fees, field trips). Applied to all students at once.</p>
+            <input id="specialAssessmentDesc" placeholder="Description (e.g., Science Project Fund)">
+            <input id="specialAssessmentAmount" type="number" min="0" placeholder="Amount per student">
+            <button onclick="addSpecialAssessment()">Apply to All Students</button>
+          </div>
+        </section>
 
         <section id="page-expenses" class="page ui-animate">
           <div class="page-header ui-animate">

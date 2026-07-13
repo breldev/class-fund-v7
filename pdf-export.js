@@ -88,22 +88,30 @@
 
     // Total collected
     var totalCollected = 0;
+    var totalSpecialAssessments = 0;
     students.forEach(function(s) {
       var paid = (s.payments||[]).reduce(function(sum, p) { return sum + toNumber(p.amount); }, 0);
       totalCollected += paid;
+      var special = (s.specialAssessments||[]).reduce(function(sum, a) { return sum + toNumber(a.amount); }, 0);
+      totalSpecialAssessments += special;
     });
+    var totalCollectedWithSpecial = totalCollected + totalSpecialAssessments;
     var totalUnidentified = 0;
     if (data.unidentifiedFunds) {
       totalUnidentified = data.unidentifiedFunds.reduce(function(sum, f) { return sum + toNumber(f.amount); }, 0);
     }
-    var totalCollectedWithUnidentified = totalCollected + totalUnidentified;
+    var totalCollectedWithUnidentified = totalCollectedWithSpecial + totalUnidentified;
     text("Total Collected:", col1, y);
     doc.setFont("helvetica", "bold");
     text("₱" + totalCollectedWithUnidentified.toLocaleString(), col2, y);
     doc.setFont("helvetica", "normal");
     if (totalUnidentified > 0) {
       y += 4;
-      text("(₱" + totalCollected.toLocaleString() + " identified + ₱" + totalUnidentified.toLocaleString() + " unidentified)", col1, y);
+      text("(₱" + totalCollectedWithSpecial.toLocaleString() + " identified + ₱" + totalUnidentified.toLocaleString() + " unidentified)", col1, y);
+    }
+    if (totalSpecialAssessments > 0) {
+      y += 4;
+      text("(including ₱" + totalSpecialAssessments.toLocaleString() + " in special assessments)", col1, y);
     }
     y += 10;
 

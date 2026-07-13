@@ -87,6 +87,7 @@
 
     // ===== Compute aggregates =====
     let totalPaidAll = 0;
+    let totalSpecialAll = 0;
     let totalDebtAll = 0;
     let fullyUpdatedCount = 0;
     let withRemainingCount = 0;
@@ -100,6 +101,8 @@
       const debt = getDebt(weeks);
       const payCount = (Array.isArray(s.payments) ? s.payments : []).length;
       totalPaidAll += totalPaid;
+      var special = (s.specialAssessments||[]).reduce(function(sum, a) { return sum + toNumber(a.amount); }, 0);
+      totalSpecialAll += special;
       totalDebtAll += debt;
 
       const status = getStatusLabel(weeks, debt, cur, payCount);
@@ -165,11 +168,12 @@
 
     // ===== Sheet 1: Dashboard =====
     const totalCollected = totalPaidAll;
+    const grandTotalCollected = totalPaidAll + totalSpecialAll;
     const expected = validWeeks * WEEKLY_FEE * students.length;
     const remainingCollection = expected - totalCollected;
     const totalExpenses = expenses.reduce((sum, e) => sum + toNumber(e.amount), 0);
-    const netBalance = totalCollected + totalUnidentified - totalExpenses;
-    const totalForDistribution = totalCollected + totalUnidentified;
+    const netBalance = grandTotalCollected + totalUnidentified - totalExpenses;
+    const totalForDistribution = grandTotalCollected + totalUnidentified;
     const eventAllocated = totalForDistribution * 0.7;
     const reserveAllocated = totalForDistribution * 0.3;
     const eventExpenses = expenses.reduce((s, e) => {
@@ -192,7 +196,9 @@
       ["Current Week", cur],
       ["Student Count", students.length],
       ["Weekly Fee", WEEKLY_FEE],
-      ["Total Collected", totalCollected],
+      ["Total Collected", grandTotalCollected],
+      ["  (Weekly)", totalCollected],
+      ["  (Special Assessments)", totalSpecialAll],
       ["Expected Collection", expected],
       ["Remaining Collection", remainingCollection],
       ["Advanced", advancedCount],
@@ -375,6 +381,7 @@
       archiveRows.push({
         "Month": safeString(a.month),
         "Collected": formatMoneyPHP(a.collected),
+        "Special Assessments": formatMoneyPHP(toNumber(a.specialAssessments)),
         "Event Fund": formatMoneyPHP(a.eventFund),
         "Reserve Fund": formatMoneyPHP(a.reserveFund),
         "Event Expenses": formatMoneyPHP(toNumber(a.eventExpenses)),

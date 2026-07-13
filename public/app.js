@@ -859,6 +859,14 @@ function getTotalCollected(){
   return students.reduce((sum,student) => sum + getTotal(student),0);
 }
 
+function getTotalSpecialAssessments(){
+  return students.reduce((sum,student) => sum + getSpecialTotal(student),0);
+}
+
+function getGrandTotalCollected(){
+  return getTotalCollected() + getTotalSpecialAssessments();
+}
+
 function getTotalExpenses(){
   return expenses.reduce((sum,expense) => sum + toNumber(expense.amount),0);
 }
@@ -927,6 +935,68 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
   render();
   showToast("₱" + assignAmount.toLocaleString() + " assigned to " + student.name, "success");
   return true;
+}
+
+// ================= SPECIAL ASSESSMENTS =================
+function addSpecialAssessment(){
+  var desc = ($("specialAssessmentDesc")?.value || "").trim();
+  var amount = toNumber($("specialAssessmentAmount")?.value);
+  if(!desc){
+    showToast("Enter a description for the assessment", "error");
+    return;
+  }
+  if(amount <= 0){
+    showToast("Enter a valid amount", "error");
+    return;
+  }
+  if(!students.length){
+    showToast("No students to apply assessment to", "error");
+    return;
+  }
+
+  var now = new Date();
+  var month = now.toLocaleString("en-US", {month:"long", year:"numeric"});
+  var date = now.toLocaleString();
+  var _uid = Date.now() + "_" + Math.random().toString(36).slice(2,8);
+
+  students.forEach(function(s){
+    if(!Array.isArray(s.specialAssessments)) s.specialAssessments = [];
+    s.specialAssessments.push({
+      description: desc,
+      amount: amount,
+      date: date,
+      month: month,
+      _uid: _uid
+    });
+  });
+
+  $("specialAssessmentDesc").value = "";
+  $("specialAssessmentAmount").value = "";
+
+  save();
+  render();
+  showToast("₱" + amount.toLocaleString() + " (" + escHtml(desc) + ") applied to " + students.length + " students", "success");
+}
+
+function deleteSpecialAssessment(studentId, uid){
+  var s = students.find(function(x){ return x.id === studentId; });
+  if(!s || !s.specialAssessments) return;
+
+  var idx = s.specialAssessments.findIndex(function(a){ return a._uid === uid; });
+  if(idx === -1) return;
+
+  var removed = s.specialAssessments.splice(idx, 1)[0];
+
+  save();
+  render();
+  showToast("Assessment removed", "success");
+  showUndoToast(function(){
+    s.specialAssessments.push(removed);
+    s.specialAssessments.sort(function(a,b){ return (a.date || "").localeCompare(b.date || ""); });
+    save();
+    render();
+    viewStudent(studentId);
+  });
 }
 
 function readReceiptImage(file){
@@ -1162,14 +1232,14 @@ function renderExpenses(){
     if(tblEl) tblEl.classList.add("table-upgraded", "exp-tbl");
   }
   const total = getTotalExpenses();
-  const balance = getTotalCollected() + getTotalUnidentified() - total;
+  const balance = getGrandTotalCollected() + getTotalUnidentified() - total;
 
   if($("expenseTotal")) animateNumber($("expenseTotal"), total);
   if($("netBalance")) animateNumber($("netBalance"), balance);
   if($("expensesPageTotal")) animateNumber($("expensesPageTotal"), total);
   if($("expensesPageBalance")) animateNumber($("expensesPageBalance"), balance);
 
-  const collected = getTotalCollected() + getTotalUnidentified();
+  const collected = getGrandTotalCollected() + getTotalUnidentified();
   const eventExpTotal = expenses.reduce((s,e) => {
     if(e.fund === "both") return s + toNumber(e.eventAmount || 0);
     if((e.fund || "event") === "event") return s + toNumber(e.amount);
@@ -1293,6 +1363,14 @@ function closeReceiptModal(){
 // ================= COMPUTE =================
 function getTotal(s){
   return (s.payments||[]).reduce((a,b)=>a + toNumber(b.amount),0);
+}
+
+function getSpecialTotal(s){
+  return (s.specialAssessments||[]).reduce((a,b)=>a + toNumber(b.amount),0);
+}
+
+function getGrandTotal(s){
+  return getTotal(s) + getSpecialTotal(s);
 }
 
 // ================= DELETE =================
@@ -1521,6 +1599,8 @@ function render(){
       var total = getTotal(s);
       var monthDebt = getMonthDebt(s);
       var payCount = (s.payments||[]).length;
+      var specialTotal = getSpecialTotal(s);
+      var specialBadge = specialTotal > 0 ? ' <span class="chip" style="font-size:10px;background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.2);padding:2px 6px;vertical-align:middle;border-radius:6px;white-space:nowrap">📋₱' + specialTotal.toLocaleString() + '</span>' : '';
       rowNum++;
 
       var statusClass, statusLabel;
@@ -1572,7 +1652,7 @@ function render(){
         '<tr class="status-row-' + statusClass + '" data-student-id="' + s.id + '">' +
            "<td><label class=\"bulk-check-label\"><input type=\"checkbox\" class=\"bulk-check-input\" onchange=\"toggleSelectStudent(" + s.id + ")\"" + checked + "><span class=\"bulk-check-box\"></span></label></td>" +
           '<td class="row-num">' + rowNum + "</td>" +
-          '<td><span class="av" style="background:' + getAvatarColor(s.name) + '">' + getInitials(s.name) + '</span><span class="student-link" onclick="viewStudent(' + s.id + ')">' + highlightText(s.name, search) + '</span> <button class="hist-btn" onclick="event.stopPropagation();editStudentName(' + s.id + ')" title="Edit name">✏</button></td>' +
+          '<td><span class="av" style="background:' + getAvatarColor(s.name) + '">' + getInitials(s.name) + '</span><span class="student-link" onclick="viewStudent(' + s.id + ')">' + highlightText(s.name, search) + '</span> <button class="hist-btn" onclick="event.stopPropagation();editStudentName(' + s.id + ')" title="Edit name">✏</button>' + specialBadge + '</td>' +
           '<td data-label="Paid">₱' + total + "</td>" +
           '<td data-label="Month">' + monthDisplay + "</td>" +
           '<td data-label="Progress">' + progressBar + "</td>" +
@@ -1652,15 +1732,17 @@ function render(){
   var monthTotalCollected = students.reduce(function(sum, s){ return sum + getMonthPayments(s); }, 0);
 
   var allTimeCollected = getTotalCollected();
+  var allTimeGrandCollected = getGrandTotalCollected();
   var allTimeExpected = validWeeks * weeklyFee * students.length;
 
   // ================= EXISTING DASHBOARD =================
-  animateNumber($("collected"), allTimeCollected);
+  animateNumber($("collected"), allTimeGrandCollected);
   animateNumber($("expected"), allTimeExpected);
-  animateNumber($("remaining"), Math.max(0, allTimeExpected - allTimeCollected));
+  animateNumber($("remaining"), Math.max(0, allTimeExpected - allTimeGrandCollected));
 
   if ($("dashUnidentified")) animateNumber($("dashUnidentified"), getTotalUnidentified());
   if ($("dashTotalExpenses")) animateNumber($("dashTotalExpenses"), getTotalExpenses());
+  if ($("dashSpecialAssessments")) animateNumber($("dashSpecialAssessments"), getTotalSpecialAssessments());
 
   var dashUpdated = 0, dashDebt = 0, dashAdvanced = 0, dashNone = 0;
   students.forEach(function(s){
@@ -1710,7 +1792,7 @@ function render(){
     if(e.fund === "reserve") return s + toNumber(e.amount);
     return s;
   }, 0);
-  var allCollected = getTotalCollected() + getTotalUnidentified();
+  var allCollected = getGrandTotalCollected() + getTotalUnidentified();
   const grossEventFund = allCollected * 0.70;
   const grossReserveFund = allCollected * 0.30;
   const eventAvailable = Math.max(0, grossEventFund - eventExpensesSum);
@@ -2185,7 +2267,7 @@ function copyReport(){
     if(e.fund === "reserve") return s + toNumber(e.amount);
     return s;
   }, 0);
-  const totalForDistribution = totalCollected + getTotalUnidentified();
+  const totalForDistribution = totalCollected + getTotalSpecialAssessments() + getTotalUnidentified();
   const grossEventFund = totalForDistribution * 0.70;
   const grossReserveFund = totalForDistribution * 0.30;
   const eventAvailable = Math.max(0, grossEventFund - eventExpensesSum);
@@ -2220,6 +2302,8 @@ function copyReport(){
     : "• No expenses recorded";
 
   const totalUnidentified = getTotalUnidentified();
+  const totalSpecial = getTotalSpecialAssessments();
+  const grandTotal = totalCollected + totalSpecial;
 
   const report = `
 CLASS FUND REPORT
@@ -2227,7 +2311,7 @@ CLASS FUND REPORT
 Current Week: ${cur}
 Students: ${students.length}
 
-Total Collected (All Time): ₱${totalCollected}
+Total Collected (All Time): ₱${grandTotal}${totalSpecial > 0 ? "\nSpecial Assessments: ₱" + totalSpecial : ""}
 Expected Collection (All Time): ₱${expected}
 Remaining Collection (All Time): ₱${remainingAfterCollected}${totalUnidentified > 0 ? "\nUnidentified Funds: ₱" + totalUnidentified : ""}
 
@@ -2357,10 +2441,13 @@ function copyShortReport(){
   const remaining = expected - totalCollected;
 
   const totalUnidentified = getTotalUnidentified();
+  const totalSpecial = getTotalSpecialAssessments();
+  const grandTotal = totalCollected + totalSpecial;
   const totalExpenses = getTotalExpenses();
-  const netBalance = totalCollected + totalUnidentified - totalExpenses;
+  const netBalance = grandTotal + totalUnidentified - totalExpenses;
 
-  var summaryParts = ["💰 Collected (Total): ₱" + totalCollected, "📉 Remaining (Total): ₱" + remaining];
+  var summaryParts = ["💰 Collected (Total): ₱" + grandTotal, "📉 Remaining (Weekly): ₱" + remaining];
+  if (totalSpecial > 0) summaryParts.push("📋 Special Assessments: ₱" + totalSpecial);
   if (totalUnidentified > 0) summaryParts.push("❓ Unidentified Funds: ₱" + totalUnidentified);
   summaryParts.push("💸 Expenses: ₱" + totalExpenses, "🏦 Net Balance: ₱" + netBalance);
 
@@ -2734,7 +2821,11 @@ function saveArchive(){
   });
 
   const totalCollected = students.reduce(
-    (sum,s)=>sum+getTotal(s),
+    (sum,s)=>sum+getGrandTotal(s),
+    0
+  );
+  const totalSpecial = students.reduce(
+    (sum,s)=>sum+getSpecialTotal(s),
     0
   );
   const totalUnidentified = getTotalUnidentified();
@@ -2755,6 +2846,7 @@ function saveArchive(){
     month: monthKey,
     collected: totalCollected,
     unidentified: totalUnidentified,
+    specialAssessments: totalSpecial,
     eventFund: totalForDistribution * 0.70,
     reserveFund: totalForDistribution * 0.30,
     eventExpenses: eventExpensesSum,
@@ -2770,6 +2862,9 @@ function saveArchive(){
 
     existing.collected =
     archive.collected;
+
+    existing.unidentified =
+    archive.unidentified;
 
     existing.eventFund =
     archive.eventFund;
@@ -2788,6 +2883,9 @@ function saveArchive(){
 
     existing.date =
     archive.date;
+
+    existing.specialAssessments =
+    archive.specialAssessments;
 
   }else{
 
@@ -2891,6 +2989,7 @@ function renderArchive(){
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
           <div class="stat-card"><span class="stat-label">Collected</span><span class="stat-value" style="color:var(--green)">₱${a.collected.toLocaleString()}</span></div>
           <div class="stat-card"><span class="stat-label">Unidentified</span><span class="stat-value" style="color:var(--amber)">₱${(a.unidentified||0).toLocaleString()}</span></div>
+          <div class="stat-card"><span class="stat-label">Special Assess.</span><span class="stat-value" style="color:#a78bfa">₱${(a.specialAssessments||0).toLocaleString()}</span></div>
           <div class="stat-card"><span class="stat-label">Event Fund</span><span class="stat-value" style="color:#93c5fd">₱${a.eventFund.toLocaleString()}</span><span class="kpi-sub">Avail: ₱${eventAvailable.toLocaleString()}</span></div>
           <div class="stat-card"><span class="stat-label">Reserve Fund</span><span class="stat-value" style="color:var(--green)">₱${a.reserveFund.toLocaleString()}</span><span class="kpi-sub">Avail: ₱${reserveAvailable.toLocaleString()}</span></div>
           <div class="stat-card"><span class="stat-label">Expenses</span><span class="stat-value" style="color:var(--rose)">₱${((a.eventExpenses||0)+(a.reserveExpenses||0)).toLocaleString()}</span><span class="kpi-sub">👥 ${a.students} students · Avg ₱${avgPerStudent.toLocaleString()}/ea</span></div>
@@ -2973,17 +3072,20 @@ function renderHistory(){
   pageRecords.forEach(function(record){
     var origIdx = paymentHistory.indexOf(record);
     var weekLabel = record.week ? " · Week " + record.week : "";
+    var typeBadge = record.type === "special_assessment" ? ' <span class="chip" style="font-size:10px;background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.2);padding:2px 6px;border-radius:6px;white-space:nowrap">📋 Special</span>' : "";
+    var descLabel = record.description ? " · " + escHtml(record.description) : "";
 
     html +=
     '<div class="card history-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">' +
       '<div style="display:flex;align-items:center;gap:14px;min-width:0">' +
         '<span class="av" style="background:' + getAvatarColor(record.student) + ';width:40px;height:40px;font-size:15px;border-radius:50%">' + getInitials(record.student) + '</span>' +
         '<div style="min-width:0">' +
-          "<strong style=\"font-size:15px\">" + escHtml(record.student) + "</strong>" +
+          "<strong style=\"font-size:15px\">" + escHtml(record.student) + typeBadge + "</strong>" +
           "<div style=\"display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:2px;flex-wrap:wrap;\">" +
             "<span>💰 ₱" + record.amount + "</span>" +
+            (record.type === "special_assessment" && record.description ? "<span>📋 " + escHtml(record.description) + "</span>" : "") +
             "<span>📅 " + record.date + "</span>" +
-            "<span>📁 " + record.month + "</span>" +
+            "<span>📁 " + record.month + "</span>" + descLabel +
             (weekLabel ? "<span>📆" + weekLabel + "</span>" : "") +
           "</div>" +
         "</div>" +
@@ -3091,6 +3193,19 @@ function checkMonthReset(){
 
     });
 
+    // Also copy special assessments to history
+    (student.specialAssessments||[]).forEach(function(assessment){
+      paymentHistory.push({
+        student: student.name,
+        amount: assessment.amount,
+        date: assessment.date,
+        month: assessment.month || savedMonth,
+        week: "",
+        type: "special_assessment",
+        description: assessment.description || "Special Assessment"
+      });
+    });
+
   });
 
   localStorage.setItem(
@@ -3188,7 +3303,30 @@ function viewStudent(id){
 
   paymentHtml += "</div></div>";
 
-  $("modalPaymentArea").innerHTML = paymentHtml;
+  // Special Assessments section
+  var assessments = student.specialAssessments || [];
+  var assessHtml = '<div class="modal-payments" style="margin-top:16px;">' +
+    '<h3>📋 Special Assessments</h3>';
+  if(assessments.length === 0){
+    assessHtml += '<div class="muted-text">No special assessments recorded.</div>';
+  } else {
+    assessHtml += '<div id="modalAssessList">';
+    assessments.forEach(function(a){
+      assessHtml +=
+        '<div class="modal-pay-row">' +
+          '<span>₱' + toNumber(a.amount).toLocaleString() + ' · ' + escHtml(a.description || "Assessment") + ' · ' + (a.date || "-") + '</span>' +
+          '<span>' +
+            '<button class="hist-btn" onclick="deleteSpecialAssessment(' + student.id + ',\'' + a._uid + '\')" aria-label="Delete assessment">🗑</button>' +
+          '</span>' +
+        '</div>';
+    });
+    var assessTotal = getSpecialTotal(student);
+    assessHtml += '<div style="margin-top:8px;font-size:13px;color:var(--muted);">Total: <strong>₱' + assessTotal.toLocaleString() + '</strong></div>';
+    assessHtml += '</div>';
+  }
+  assessHtml += '</div>';
+
+  $("modalPaymentArea").innerHTML = paymentHtml + assessHtml;
 
   $("studentModal").style.display =
   "flex";
@@ -3624,6 +3762,13 @@ function finishInit(){
     }
   });
   if (codesChanged) save();
+
+  // Initialize specialAssessments for backwards compatibility
+  students.forEach(function(s) {
+    if (!Array.isArray(s.specialAssessments)) {
+      s.specialAssessments = [];
+    }
+  });
 
   if($("startDate")){
     $("startDate").value = startDate || "";
