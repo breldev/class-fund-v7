@@ -2547,10 +2547,11 @@ function copyReport(){
     (s.specialAssessments||[]).forEach(function(a){
       var key = a.description + "|" + a.amount;
       if(!assessmentMap[key]){
-        assessmentMap[key] = { description: a.description, amount: toNumber(a.amount), count: 0, total: 0 };
+        assessmentMap[key] = { description: a.description, amount: toNumber(a.amount), count: 0, total: 0, paidNames: [] };
       }
       assessmentMap[key].count++;
       assessmentMap[key].total += toNumber(a.amount);
+      assessmentMap[key].paidNames.push(s.name);
     });
   });
 
@@ -2607,9 +2608,14 @@ function copyReport(){
     ? expensesSectionParts.join("\r\n")
     : "  • No expenses recorded";
 
+  var allStudentNames = students.map(function(s){ return s.name; });
   var assmtParts = Object.keys(assessmentMap).map(function(k){
     var a = assessmentMap[k];
-    return "  • " + a.description + " — ₱" + a.amount.toLocaleString() + " (" + a.count + "/" + students.length + " students, ₱" + a.total.toLocaleString() + ")";
+    var unpaidNames = allStudentNames.filter(function(n){ return a.paidNames.indexOf(n) === -1; });
+    var paidStr = a.count > 0 ? "\r\n    ✅ Paid (" + a.count + "): " + a.paidNames.join(", ") : "";
+    var unpaidStr = unpaidNames.length > 0 ? "\r\n    ❌ Unpaid (" + unpaidNames.length + "): " + unpaidNames.join(", ") : "";
+    return "  • " + a.description + " — ₱" + a.amount.toLocaleString() + " (" + a.count + "/" + students.length + " students, ₱" + a.total.toLocaleString() + ")"
+      + paidStr + unpaidStr;
   });
 
   var lines = [];
@@ -2711,6 +2717,7 @@ function copyShortReport(){
   let advancedCount = 0;
   let debtCount = 0;
   let noneCount = 0;
+  var shortAssessMap = {};
 
   students.forEach(s => {
     const totalPaid = getTotal(s);
@@ -2726,6 +2733,14 @@ function copyShortReport(){
     }else{
       updatedCount++;
     }
+
+    (s.specialAssessments||[]).forEach(function(a){
+      var key = a.description + "|" + a.amount;
+      if(!shortAssessMap[key]){
+        shortAssessMap[key] = { description: a.description, amount: toNumber(a.amount), count: 0 };
+      }
+      shortAssessMap[key].count++;
+    });
   });
 
   const totalCollected = getTotalCollected();
@@ -2737,7 +2752,13 @@ function copyShortReport(){
   const netBalance = grandTotal + totalUnidentified - totalExpenses;
 
   var summaryParts = ["💰 Total Collected: ₱" + grandTotal.toLocaleString(), "📉 Remaining: ₱" + remaining.toLocaleString()];
-  if (totalSpecial > 0) summaryParts.push("📋 Special Assessments: ₱" + totalSpecial.toLocaleString());
+  if (totalSpecial > 0) {
+    summaryParts.push("📋 Special Assessments: ₱" + totalSpecial.toLocaleString() + " (" + Object.keys(shortAssessMap).length + " type" + (Object.keys(shortAssessMap).length > 1 ? "s" : "") + ")");
+    Object.keys(shortAssessMap).forEach(function(k){
+      var a = shortAssessMap[k];
+      summaryParts.push("    " + a.description + ": " + a.count + "/" + students.length + " paid");
+    });
+  }
   if (totalUnidentified > 0) summaryParts.push("❓ Unidentified Funds: ₱" + totalUnidentified.toLocaleString());
   summaryParts.push("💸 Expenses: ₱" + totalExpenses.toLocaleString(), "🏦 Net Balance: ₱" + netBalance.toLocaleString());
 
@@ -2774,6 +2795,7 @@ function copyGCReminder(){
   var totalCollected = 0;
   var unidentified = getTotalUnidentified();
   var totalSpecial = getTotalSpecialAssessments();
+  var assessMap = {};
 
   var advanced = [];
   var paid = [];
@@ -2806,6 +2828,15 @@ function copyGCReminder(){
       unpaid.push({ name: s.name, debt: md, weeksCovered: weeksCovered });
       unpaidTotal += md;
     }
+
+    // Collect per-assessment data
+    (s.specialAssessments||[]).forEach(function(a){
+      var key = a.description + "|" + a.amount;
+      if(!assessMap[key]){
+        assessMap[key] = { description: a.description, amount: toNumber(a.amount), paidNames: [] };
+      }
+      assessMap[key].paidNames.push(s.name);
+    });
   });
 
   function fmt(arr, fn){
@@ -2824,6 +2855,22 @@ function copyGCReminder(){
   lines.push("  Collected: ₱" + totalCollected.toLocaleString() + " / ₱" + totalExpected.toLocaleString() + " (" + pct + "%)");
   if (totalSpecial > 0) lines.push("  📋 Special Assessments: ₱" + totalSpecial.toLocaleString());
   if (unidentified > 0) lines.push("  ❓ Unidentified: ₱" + unidentified.toLocaleString());
+
+  var assessKeys = Object.keys(assessMap);
+  if(assessKeys.length){
+    var allStudentNames = students.map(function(s){ return s.name; });
+    lines.push("");
+    lines.push("📋 ASSESSMENT STATUS");
+    assessKeys.forEach(function(k){
+      var a = assessMap[k];
+      var unpaidNames = allStudentNames.filter(function(n){ return a.paidNames.indexOf(n) === -1; });
+      var line = "  " + a.description + " (₱" + a.amount.toLocaleString() + "):";
+      if(a.paidNames.length) line += "\r\n    ✅ Paid (" + a.paidNames.length + "): " + a.paidNames.join(", ");
+      if(unpaidNames.length) line += "\r\n    ❌ Unpaid (" + unpaidNames.length + "): " + unpaidNames.join(", ");
+      lines.push(line);
+    });
+  }
+
   lines.push("");
   lines.push("⭐ ADVANCED (" + advanced.length + ") — paid more than expected");
   lines.push(fmt(advanced, function(s){ return s.name + " — ₱" + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
