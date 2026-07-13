@@ -939,6 +939,7 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
 
 // ================= SPECIAL ASSESSMENTS =================
 var _currentAssessment = null;
+var _assessmentFilter = "all";
 
 function startAssessmentRecorder(){
   var desc = ($("specialAssessmentDesc")?.value || "").trim();
@@ -947,7 +948,18 @@ function startAssessmentRecorder(){
   if(amount <= 0){ showToast("Enter a valid amount", "error"); return; }
   if(!students.length){ showToast("No students", "error"); return; }
 
-  _currentAssessment = { description: desc, amount: amount };
+  var dateVal = $("specialAssessmentDate")?.value || "";
+  var dueDateVal = $("specialAssessmentDueDate")?.value || "";
+  var assessDate = dateVal ? new Date(dateVal + "T00:00:00") : new Date();
+
+  _currentAssessment = {
+    description: desc,
+    amount: amount,
+    date: assessDate.toLocaleString(),
+    month: assessDate.toLocaleString("en-US", {month:"long", year:"numeric"}),
+    dueDate: dueDateVal
+  };
+  _assessmentFilter = "all";
   $("specialAssessmentForm").style.display = "none";
   renderAssessmentRecorder();
 }
@@ -960,20 +972,50 @@ function renderAssessmentRecorder(){
   var desc = _currentAssessment.description;
   var amount = _currentAssessment.amount;
   var appliedCount = 0;
+  var overdueCount = 0;
+  var now = new Date();
+
+  // First pass: count stats
+  students.forEach(function(s){
+    var idx = (s.specialAssessments||[]).findIndex(function(a){ return a.description === desc && toNumber(a.amount) === amount; });
+    if(idx !== -1) appliedCount++;
+    else if(_currentAssessment.dueDate && new Date(_currentAssessment.dueDate + "T23:59:59") < now) overdueCount++;
+  });
+
+  var dueDateLine = _currentAssessment.dueDate
+    ? '<div style="font-size:12px;color:var(--muted);margin-top:4px;">Due: ' + new Date(_currentAssessment.dueDate + "T00:00:00").toLocaleDateString() + (overdueCount > 0 ? ' <span style="color:var(--rose);font-weight:700;">⚠ ' + overdueCount + ' overdue</span>' : '') + '</div>'
+    : '';
+
+  var filterBar = '<div class="filter-bar" style="margin-bottom:8px;">' +
+    '<button class="assess-filter-btn filter-btn ' + (_assessmentFilter === "all" ? "active" : "") + '" onclick="setAssessmentFilter(\'all\')">All</button>' +
+    '<button class="assess-filter-btn filter-btn ' + (_assessmentFilter === "applied" ? "active" : "") + '" onclick="setAssessmentFilter(\'applied\')">✓ Applied</button>' +
+    '<button class="assess-filter-btn filter-btn ' + (_assessmentFilter === "unapplied" ? "active" : "") + '" onclick="setAssessmentFilter(\'unapplied\')">○ Unapplied</button>' +
+  '</div>';
 
   var html =
     '<div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);">' +
       '<strong style="font-size:15px;">📋 ' + escHtml(desc) + '</strong> — ₱' + amount.toLocaleString() + ' per student' +
+      dueDateLine +
     '</div>' +
+    filterBar +
     '<div style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">';
 
   students.forEach(function(s){
     var idx = (s.specialAssessments||[]).findIndex(function(a){ return a.description === desc && toNumber(a.amount) === amount; });
     var applied = idx !== -1;
-    if(applied) appliedCount++;
+    var isOverdue = !applied && _currentAssessment.dueDate && new Date(_currentAssessment.dueDate + "T23:59:59") < now;
+
+    if(_assessmentFilter === "applied" && !applied) return;
+    if(_assessmentFilter === "unapplied" && applied) return;
+
+    var rowStyle = isOverdue
+      ? 'background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);'
+      : applied
+        ? 'background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.15);'
+        : 'background:rgba(255,255,255,.03);border:1px solid transparent;';
 
     html +=
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;background:' + (applied ? 'rgba(16,185,129,.08)' : 'rgba(255,255,255,.03)') + ';border:1px solid ' + (applied ? 'rgba(16,185,129,.15)' : 'transparent') + ';">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;' + rowStyle + '">' +
         '<div style="display:flex;align-items:center;gap:10px;min-width:0">' +
           '<span class="av" style="background:' + getAvatarColor(s.name) + ';width:32px;height:32px;font-size:12px">' + getInitials(s.name) + '</span>' +
           '<span style="font-size:14px;font-weight:600;">' + escHtml(s.name) + '</span>' +
@@ -985,6 +1027,9 @@ function renderAssessmentRecorder(){
             '<span class="chip" style="font-size:11px;background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.2)">✓ Applied</span>' +
             '<button class="ghost-btn" style="min-height:30px;height:30px;padding:0 10px;font-size:11px;color:var(--rose);" onclick="removeAssessmentFromStudent(' + s.id + ')">Remove</button>';
     }else{
+      html += isOverdue
+        ? '<span class="chip" style="font-size:11px;background:rgba(239,68,68,.15);color:#f87171;border-color:rgba(239,68,68,.2)">⚠ Overdue</span>'
+        : '';
       html +=
             '<button class="btn-pay" style="min-height:30px;height:30px;padding:0 12px;font-size:11px;" onclick="applyToStudent(' + s.id + ')">Apply</button>';
     }
@@ -1002,6 +1047,7 @@ function renderAssessmentRecorder(){
     '</div>';
 
   container.innerHTML = html;
+  renderAssessmentHistory();
 }
 
 function applyToStudent(studentId){
@@ -1010,18 +1056,19 @@ function applyToStudent(studentId){
   if(!s) return;
   if((s.specialAssessments||[]).some(function(a){ return a.description === _currentAssessment.description && toNumber(a.amount) === _currentAssessment.amount; })) return;
 
-  var now = new Date();
   if(!Array.isArray(s.specialAssessments)) s.specialAssessments = [];
   s.specialAssessments.push({
     description: _currentAssessment.description,
     amount: _currentAssessment.amount,
-    date: now.toLocaleString(),
-    month: now.toLocaleString("en-US", {month:"long", year:"numeric"}),
+    date: _currentAssessment.date,
+    month: _currentAssessment.month,
+    dueDate: _currentAssessment.dueDate || "",
     _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
   });
 
   save();
   renderAssessmentRecorder();
+  renderAssessmentHistory();
 }
 
 function applyAllRemaining(){
@@ -1029,19 +1076,19 @@ function applyAllRemaining(){
   var count = 0;
   students.forEach(function(s){
     if(!(s.specialAssessments||[]).some(function(a){ return a.description === _currentAssessment.description && toNumber(a.amount) === _currentAssessment.amount; })){
-      var now = new Date();
       if(!Array.isArray(s.specialAssessments)) s.specialAssessments = [];
       s.specialAssessments.push({
         description: _currentAssessment.description,
         amount: _currentAssessment.amount,
-        date: now.toLocaleString(),
-        month: now.toLocaleString("en-US", {month:"long", year:"numeric"}),
+        date: _currentAssessment.date,
+        month: _currentAssessment.month,
+        dueDate: _currentAssessment.dueDate || "",
         _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
       });
       count++;
     }
   });
-  if(count > 0){ save(); renderAssessmentRecorder(); }
+  if(count > 0){ save(); renderAssessmentRecorder(); renderAssessmentHistory(); }
   showToast("Applied to " + count + " remaining students", "success");
 }
 
@@ -1056,6 +1103,7 @@ function removeAssessmentFromStudent(studentId){
   var removed = s.specialAssessments.splice(idx, 1)[0];
   save();
   renderAssessmentRecorder();
+  renderAssessmentHistory();
   showToast("Assessment removed", "success");
   showUndoToast(function(){
     s.specialAssessments.push(removed);
@@ -1066,11 +1114,15 @@ function removeAssessmentFromStudent(studentId){
 
 function clearAssessmentRecorder(){
   _currentAssessment = null;
+  _assessmentFilter = "all";
   $("specialAssessmentDesc").value = "";
   $("specialAssessmentAmount").value = "";
+  $("specialAssessmentDate").value = "";
+  $("specialAssessmentDueDate").value = "";
   $("specialAssessmentForm").style.display = "";
   var container = $("specialAssessmentRecorder");
   if(container) container.innerHTML = "";
+  renderAssessmentHistory();
 }
 
 function deleteSpecialAssessment(studentId, uid){
@@ -1092,6 +1144,109 @@ function deleteSpecialAssessment(studentId, uid){
     render();
     viewStudent(studentId);
   });
+}
+
+// ================= SPECIAL ASSESSMENT FILTER =================
+function setAssessmentFilter(f){
+  _assessmentFilter = f;
+  var btns = document.querySelectorAll("#specialAssessmentRecorder .assess-filter-btn");
+  btns.forEach(function(b){ b.classList.remove("active"); });
+  var btn = document.querySelector("#specialAssessmentRecorder .assess-filter-btn[onclick*=\"'" + f + "'\"]");
+  if(btn) btn.classList.add("active");
+  renderAssessmentRecorder();
+}
+
+// ================= ASSESSMENT HISTORY =================
+function renderAssessmentHistory(){
+  var container = $("assessmentHistory");
+  if(!container) return;
+
+  var map = {};
+  students.forEach(function(s){
+    (s.specialAssessments||[]).forEach(function(a){
+      var key = a.description + "|" + a.amount;
+      if(!map[key]){
+        map[key] = { description: a.description, amount: toNumber(a.amount), count: 0 };
+      }
+      map[key].count++;
+    });
+  });
+
+  var keys = Object.keys(map);
+  if(keys.length === 0){
+    container.innerHTML = "";
+    container.style.display = "none";
+    return;
+  }
+  container.style.display = "";
+
+  var html = '<h3 style="margin:0 0 10px;font-size:16px;">📋 Assessment History</h3>';
+  keys.forEach(function(key){
+    var a = map[key];
+    var totalCollected = a.count * a.amount;
+    var pct = students.length > 0 ? Math.round(a.count / students.length * 100) : 0;
+    html +=
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.12);margin-bottom:6px;">' +
+        '<div>' +
+          '<strong style="font-size:14px;">' + escHtml(a.description) + '</strong>' +
+          '<span style="font-size:13px;color:var(--muted);margin-left:8px;">₱' + a.amount.toLocaleString() + ' each</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+          '<span style="font-size:13px;color:var(--muted);">' + a.count + '/' + students.length + ' (' + pct + '%) · ₱' + totalCollected.toLocaleString() + '</span>' +
+          '<button class="ghost-btn" style="font-size:11px;padding:4px 10px;" onclick="reopenAssessment(\'' + encodeURIComponent(a.description) + '\',' + a.amount + ')">Reopen</button>' +
+        '</div>' +
+      '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+// ================= REOPEN ASSESSMENT =================
+function reopenAssessment(descEncoded, amount){
+  $("specialAssessmentDesc").value = decodeURIComponent(descEncoded);
+  $("specialAssessmentAmount").value = amount;
+  startAssessmentRecorder();
+}
+
+// ================= EDIT ASSESSMENT =================
+function editSpecialAssessment(studentId, uid){
+  var s = students.find(function(x){ return x.id === studentId; });
+  if(!s || !s.specialAssessments) return;
+
+  var a = s.specialAssessments.find(function(x){ return x._uid === uid; });
+  if(!a) return;
+
+  var oldDesc = a.description;
+  var oldAmount = a.amount;
+
+  showConfirmDialog(
+    'Description:<br><input id="editAssessDesc" value="' + escHtml(oldDesc) + '" style="width:100%;margin:4px 0 10px;box-sizing:border-box;"><br>' +
+    'Amount:<br><input id="editAssessAmount" type="number" value="' + oldAmount + '" style="width:100%;margin:4px 0 0;box-sizing:border-box;">',
+    function(){
+      var newDesc = ($("editAssessDesc")?.value || "").trim();
+      var newAmount = toNumber($("editAssessAmount")?.value);
+      if(!newDesc || newAmount <= 0){ showToast("Invalid values", "error"); return; }
+      if(newDesc === oldDesc && newAmount === oldAmount){ showToast("No changes made", "info"); return; }
+
+      var changed = false;
+      students.forEach(function(stu){
+        (stu.specialAssessments||[]).forEach(function(assess){
+          if(assess.description === oldDesc && toNumber(assess.amount) === oldAmount){
+            assess.description = newDesc;
+            assess.amount = newAmount;
+            changed = true;
+          }
+        });
+      });
+
+      if(changed){
+        save();
+        render();
+        viewStudent(studentId);
+        showToast("Assessment updated", "success");
+      }
+    }
+  );
 }
 
 function readReceiptImage(file){
@@ -1938,6 +2093,7 @@ function render(){
   }
 
   if(_currentAssessment) renderAssessmentRecorder();
+  renderAssessmentHistory();
 }
 
  // ================= DROPDOWN =================
@@ -3413,6 +3569,7 @@ function viewStudent(id){
         '<div class="modal-pay-row">' +
           '<span>₱' + toNumber(a.amount).toLocaleString() + ' · ' + escHtml(a.description || "Assessment") + ' · ' + (a.date || "-") + '</span>' +
           '<span>' +
+            '<button class="hist-btn" onclick="editSpecialAssessment(' + student.id + ',\'' + a._uid + '\')" aria-label="Edit assessment">✏️</button>' +
             '<button class="hist-btn" onclick="deleteSpecialAssessment(' + student.id + ',\'' + a._uid + '\')" aria-label="Delete assessment">🗑</button>' +
           '</span>' +
         '</div>';
