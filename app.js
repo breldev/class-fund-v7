@@ -2861,9 +2861,10 @@ function exportBackup(){
 
   const url = URL.createObjectURL(blob);
 
+  var week = getCurrentWeek();
   const a = document.createElement("a");
   a.href = url;
-  a.download = "class-fund-backup.json";
+  a.download = "class-fund-backup-week" + week + ".json";
   a.click();
 
   URL.revokeObjectURL(url);
