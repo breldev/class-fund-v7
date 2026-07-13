@@ -2255,7 +2255,10 @@ function copyStudentPayments(){
     return;
   }
   var payments = student.payments || [];
+  var specials = student.specialAssessments || [];
   var totalPaid = getTotal(student);
+  var specialTotal = getSpecialTotal(student);
+  var grandTotal = totalPaid + specialTotal;
   var curWeek = getCurrentWeek();
   var expected = weeklyFee * curWeek;
   var lines = [
@@ -2267,15 +2270,27 @@ function copyStudentPayments(){
   if(!payments.length){
     lines.push("No payments recorded yet.");
   }else{
+    lines.push("WEEKLY PAYMENTS");
     payments.forEach(function(p, i){
       lines.push("  " + (i+1) + ". ₱" + toNumber(p.amount).toLocaleString() + " — " + (p.date || "-") + (p.week ? " (Week " + p.week + ")" : ""));
     });
+    lines.push("");
+    lines.push("  Total Paid: ₱" + totalPaid.toLocaleString() + " / ₱" + expected.toLocaleString());
+    var remaining = Math.max(0, expected - totalPaid);
+    lines.push("  Remaining: ₱" + remaining.toLocaleString() + (remaining > 0 ? " (" + Math.ceil(remaining / weeklyFee) + " week" + (Math.ceil(remaining / weeklyFee) !== 1 ? "s" : "") + ")" : ""));
+  }
+  if(specials.length){
+    lines.push("");
+    lines.push("SPECIAL ASSESSMENTS");
+    specials.forEach(function(a){
+      lines.push("  • " + a.description + " — ₱" + toNumber(a.amount).toLocaleString() + (a.date ? " (" + a.date + ")" : ""));
+    });
+    lines.push("");
+    lines.push("  Total Assessments: ₱" + specialTotal.toLocaleString());
   }
   lines.push("");
-  lines.push("Total Paid: ₱" + totalPaid.toLocaleString() + " / ₱" + expected.toLocaleString());
-  var remaining = Math.max(0, expected - totalPaid);
-  lines.push("Remaining: ₱" + remaining.toLocaleString() + (remaining > 0 ? " (" + Math.ceil(remaining / weeklyFee) + " week" + (Math.ceil(remaining / weeklyFee) !== 1 ? "s" : "") + ")" : ""));
-  navigator.clipboard.writeText(lines.join("\n")).then(function(){
+  lines.push("Grand Total (Payments + Assessments): ₱" + grandTotal.toLocaleString());
+  navigator.clipboard.writeText(lines.join("\r\n")).then(function(){
     showToast("Payment history copied", "success");
   }, function(){
     showToast("Could not copy — select manually", "error");
@@ -2463,9 +2478,7 @@ function copyReport(){
 
   const cur = getCurrentWeek();
 
-  let totalCollected = 0;
-
-  // Compute expected/remaining (keep existing logic)
+  // Compute expected/remaining
   let validWeeks = 0;
   for(let i = 1; i <= cur; i++){
     if(!isSkipped(i)) validWeeks++;
@@ -2487,17 +2500,14 @@ function copyReport(){
   let noneCount = 0;
 
   const currentMonth = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
-  let studentStatusSection = `\r\n📋 STUDENT PAYMENT STATUS (${currentMonth})\r\n`;
-
   const SEP = "\r\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\r\n";
   const studentEntries = [];
+  const assessmentMap = {};
 
   sorted.forEach(s => {
     const totalPaid = getTotal(s);
     const monthDebt = getMonthDebt(s);
     const payCount = (s.payments||[]).length;
-
-    totalCollected += totalPaid;
 
     let statusIcon = "";
     let statusLabel = "";
@@ -2532,14 +2542,26 @@ function copyReport(){
     }).join("\r\n");
 
     studentEntries.push(statusIcon + " " + s.name + "\r\n\r\n" + lines);
+
+    // Collect per-assessment stats for report
+    (s.specialAssessments||[]).forEach(function(a){
+      var key = a.description + "|" + a.amount;
+      if(!assessmentMap[key]){
+        assessmentMap[key] = { description: a.description, amount: toNumber(a.amount), count: 0, total: 0 };
+      }
+      assessmentMap[key].count++;
+      assessmentMap[key].total += toNumber(a.amount);
+    });
   });
 
-  studentStatusSection += studentEntries.join(SEP) + "\r\n";
-
+  const totalCollected = getTotalCollected();
+  const totalUnidentified = getTotalUnidentified();
+  const totalSpecial = getTotalSpecialAssessments();
+  const grandTotal = totalCollected + totalSpecial;
   const remainingAfterCollected = expected - totalCollected;
 
   const expensesTotal = getTotalExpenses();
-  const netBalance = totalCollected + getTotalUnidentified() - expensesTotal;
+  const netBalance = grandTotal + totalUnidentified - expensesTotal;
 
   const eventExpensesSum = expenses.reduce((s,e) => {
     if(e.fund === "both") return s + toNumber(e.eventAmount || 0);
@@ -2551,7 +2573,7 @@ function copyReport(){
     if(e.fund === "reserve") return s + toNumber(e.amount);
     return s;
   }, 0);
-  const totalForDistribution = totalCollected + getTotalSpecialAssessments() + getTotalUnidentified();
+  const totalForDistribution = grandTotal + totalUnidentified;
   const grossEventFund = totalForDistribution * 0.70;
   const grossReserveFund = totalForDistribution * 0.30;
   const eventAvailable = Math.max(0, grossEventFund - eventExpensesSum);
@@ -2577,60 +2599,55 @@ function copyReport(){
         }else{
           fund = (expense.fund || "event") === "event" ? "Event" : "Reserve";
         }
-        expensesSectionParts.push(`• ${title} - ₱${amt} (${fund})`);
+        expensesSectionParts.push(`  • ${title} - ₱${amt} (${fund})`);
       });
   }
 
   const expensesList = expensesSectionParts.length
     ? expensesSectionParts.join("\r\n")
-    : "• No expenses recorded";
+    : "  • No expenses recorded";
 
-  const totalUnidentified = getTotalUnidentified();
-  const totalSpecial = getTotalSpecialAssessments();
-  const grandTotal = totalCollected + totalSpecial;
+  var assmtParts = Object.keys(assessmentMap).map(function(k){
+    var a = assessmentMap[k];
+    return "  • " + a.description + " — ₱" + a.amount.toLocaleString() + " (" + a.count + "/" + students.length + " students, ₱" + a.total.toLocaleString() + ")";
+  });
 
-  const report = `
-CLASS FUND REPORT
+  var lines = [];
+  lines.push("CLASS FUND REPORT");
+  lines.push("");
+  lines.push("Week " + cur + " | " + currentMonth + " | " + students.length + " Student" + (students.length > 1 ? "s" : ""));
+  lines.push("");
+  lines.push("COLLECTION OVERVIEW");
+  lines.push("  Total Collected (All Time): ₱" + grandTotal.toLocaleString());
+  if(totalSpecial > 0) lines.push("  Special Assessments: ₱" + totalSpecial.toLocaleString());
+  lines.push("  Expected Collection (All Time): ₱" + expected.toLocaleString());
+  lines.push("  Remaining Collection (All Time): ₱" + remainingAfterCollected.toLocaleString());
+  if(totalUnidentified > 0) lines.push("  Unidentified Funds: ₱" + totalUnidentified.toLocaleString());
+  lines.push("");
+  lines.push("STUDENT PAYMENT STATUS (" + currentMonth + ")");
+  lines.push("  ⭐ Advanced: " + advancedCount + " | 🟢 Fully Updated: " + updatedCount + " | 🔴 With Debt: " + debtCount + " | ⚪ No Payments: " + noneCount);
+  lines.push("");
+  studentEntries.forEach(function(e){ lines.push(e); });
+  if(assmtParts.length){
+    lines.push("");
+    lines.push("SPECIAL ASSESSMENTS");
+    assmtParts.forEach(function(p){ lines.push(p); });
+  }
+  lines.push("");
+  lines.push("FUND BREAKDOWN");
+  lines.push("  🎉 Event Fund — ₱" + grossEventFund.toLocaleString() + " allocated, ₱" + eventExpensesSum.toLocaleString() + " expenses, ₱" + eventAvailable.toLocaleString() + " available");
+  lines.push("  🏦 Reserve Fund — ₱" + grossReserveFund.toLocaleString() + " allocated, ₱" + reserveExpensesSum.toLocaleString() + " expenses, ₱" + reserveAvailable.toLocaleString() + " available");
+  lines.push("");
+  lines.push("EXPENSES");
+  lines.push("  Total Expenses: ₱" + expensesTotal.toLocaleString());
+  lines.push("  Net Balance: ₱" + netBalance.toLocaleString());
+  lines.push("");
+  lines.push("EXPENSE LIST");
+  lines.push(expensesList);
+  lines.push("");
+  lines.push("Generated: " + new Date().toLocaleString());
 
-Current Week: ${cur}
-Students: ${students.length}
-
-Total Collected (All Time): ₱${grandTotal}${totalSpecial > 0 ? "\nSpecial Assessments: ₱" + totalSpecial : ""}
-Expected Collection (All Time): ₱${expected}
-Remaining Collection (All Time): ₱${remainingAfterCollected}${totalUnidentified > 0 ? "\nUnidentified Funds: ₱" + totalUnidentified : ""}
-
-⭐ Advanced: ${advancedCount}
-🟢 Fully Updated: ${updatedCount}
-🔴 With Remaining Weeks: ${debtCount}
-⚪ No Payments: ${noneCount}
-
-${studentStatusSection}
-
-SUMMARY
-⭐ Advanced: ${advancedCount}
-🟢 Fully Updated: ${updatedCount}
-🔴 With Remaining Weeks: ${debtCount}
-⚪ No Payments: ${noneCount}
-
-FUND BREAKDOWN
-🎉 Event Fund Allocated: ₱${grossEventFund}
-🎉 Event Fund Expenses: ₱${eventExpensesSum}
-🎉 Event Fund Available: ₱${eventAvailable}
-🏦 Reserve Fund Allocated: ₱${grossReserveFund}
-🏦 Reserve Fund Expenses: ₱${reserveExpensesSum}
-🏦 Reserve Fund Available: ₱${reserveAvailable}
-
-EXPENSES SUMMARY
-Total Expenses: ₱${expensesTotal}
-Net Balance: ₱${netBalance}
-
-EXPENSE LIST
-${expensesList}
-
-Generated: ${new Date().toLocaleString()}
-`;
-
-  navigator.clipboard.writeText(report)
+  navigator.clipboard.writeText(lines.join("\r\n"))
     .then(()=> showToast("Report copied!", "success"))
     .catch(()=> showToast("Copy failed", "error"));
 }
@@ -2682,8 +2699,6 @@ function copyShortReport(){
   const cur = getCurrentWeek();
   const generated = new Date().toLocaleString();
 
-  let totalCollected = 0;
-
   let validWeeks = 0;
   for(let i = 1; i <= cur; i++){
     if(!isSkipped(i)) validWeeks++;
@@ -2691,25 +2706,16 @@ function copyShortReport(){
 
   const expected = validWeeks * weeklyFee * students.length;
 
-  const sorted = (students || []).slice().sort((a,b)=>{
-    const na = (a?.name || "").toLowerCase();
-    const nb = (b?.name || "").toLowerCase();
-    if(na < nb) return -1;
-    if(na > nb) return 1;
-    return 0;
-  });
-
+  // Count status categories
   let updatedCount = 0;
   let advancedCount = 0;
   let debtCount = 0;
   let noneCount = 0;
 
-  sorted.forEach(s => {
+  students.forEach(s => {
     const totalPaid = getTotal(s);
     const monthDebt = getMonthDebt(s);
     const payCount = (s.payments||[]).length;
-
-    totalCollected += totalPaid;
 
     if(isStudentAdvanced(s)){
       advancedCount++;
@@ -2722,32 +2728,35 @@ function copyShortReport(){
     }
   });
 
+  const totalCollected = getTotalCollected();
   const remaining = expected - totalCollected;
-
   const totalUnidentified = getTotalUnidentified();
   const totalSpecial = getTotalSpecialAssessments();
   const grandTotal = totalCollected + totalSpecial;
   const totalExpenses = getTotalExpenses();
   const netBalance = grandTotal + totalUnidentified - totalExpenses;
 
-  var summaryParts = ["💰 Collected (Total): ₱" + grandTotal, "📉 Remaining (Weekly): ₱" + remaining];
-  if (totalSpecial > 0) summaryParts.push("📋 Special Assessments: ₱" + totalSpecial);
-  if (totalUnidentified > 0) summaryParts.push("❓ Unidentified Funds: ₱" + totalUnidentified);
-  summaryParts.push("💸 Expenses: ₱" + totalExpenses, "🏦 Net Balance: ₱" + netBalance);
+  var summaryParts = ["💰 Total Collected: ₱" + grandTotal.toLocaleString(), "📉 Remaining: ₱" + remaining.toLocaleString()];
+  if (totalSpecial > 0) summaryParts.push("📋 Special Assessments: ₱" + totalSpecial.toLocaleString());
+  if (totalUnidentified > 0) summaryParts.push("❓ Unidentified Funds: ₱" + totalUnidentified.toLocaleString());
+  summaryParts.push("💸 Expenses: ₱" + totalExpenses.toLocaleString(), "🏦 Net Balance: ₱" + netBalance.toLocaleString());
 
-  const report = "📊 CLASS FUND UPDATE\n" +
-"Week: " + cur + "\n\n" +
-"⭐ Advanced: " + advancedCount + "\n" +
-"🟢 Paid This Month: " + updatedCount + "\n" +
-"🔴 With Debt This Month: " + debtCount + "\n" +
-"⚪ No Payments: " + noneCount + "\n\n" +
-summaryParts.join("\n") + "\n\n" +
-"Generated: " + generated;
+  const month = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+  var lines = [];
+  lines.push("📊 CLASS FUND UPDATE");
+  lines.push("Week " + cur + " | " + month + " | " + students.length + " Student" + (students.length > 1 ? "s" : ""));
+  lines.push("");
+  lines.push("⭐ Advanced: " + advancedCount);
+  lines.push("🟢 Paid This Month: " + updatedCount);
+  lines.push("🔴 With Debt This Month: " + debtCount);
+  lines.push("⚪ No Payments: " + noneCount);
+  lines.push("");
+  summaryParts.forEach(function(p){ lines.push(p); });
+  lines.push("");
+  lines.push("Generated: " + generated);
 
-  navigator.clipboard.writeText(report)
-    .then(()=>{
-      showToast("Short report copied!", "success");
-    })
+  navigator.clipboard.writeText(lines.join("\r\n"))
+    .then(()=> showToast("Short report copied!", "success"))
     .catch(()=> showToast("Copy failed", "error"));
 }
 
@@ -2764,6 +2773,7 @@ function copyGCReminder(){
   var totalExpected = validWeeks * fee * students.length;
   var totalCollected = 0;
   var unidentified = getTotalUnidentified();
+  var totalSpecial = getTotalSpecialAssessments();
 
   var advanced = [];
   var paid = [];
@@ -2800,7 +2810,7 @@ function copyGCReminder(){
 
   function fmt(arr, fn){
     if (!arr.length) return "  (none)";
-    return arr.map(function(item, idx){ return "  " + (idx + 1) + ". " + fn(item); }).join("\n");
+    return arr.map(function(item, idx){ return "  " + (idx + 1) + ". " + fn(item); }).join("\r\n");
   }
 
   var pct = totalExpected > 0 ? Math.round(totalCollected / totalExpected * 100) : 0;
@@ -2808,31 +2818,32 @@ function copyGCReminder(){
   var lines = [];
   lines.push("CLASS FUND REMINDER");
   lines.push("");
-  lines.push("Week " + cur + " of " + validWeeks + " — PHP " + fee + "/week");
+  lines.push("Week " + cur + " of " + validWeeks + " — ₱" + fee + "/week");
   lines.push("");
   lines.push("COLLECTION SUMMARY");
-  lines.push("  Collected: PHP " + totalCollected.toLocaleString() + " / PHP " + totalExpected.toLocaleString() + " (" + pct + "%)");
-  if (unidentified > 0) lines.push("  Unidentified: PHP " + unidentified.toLocaleString());
+  lines.push("  Collected: ₱" + totalCollected.toLocaleString() + " / ₱" + totalExpected.toLocaleString() + " (" + pct + "%)");
+  if (totalSpecial > 0) lines.push("  📋 Special Assessments: ₱" + totalSpecial.toLocaleString());
+  if (unidentified > 0) lines.push("  ❓ Unidentified: ₱" + unidentified.toLocaleString());
   lines.push("");
   lines.push("⭐ ADVANCED (" + advanced.length + ") — paid more than expected");
-  lines.push(fmt(advanced, function(s){ return s.name + " — PHP " + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  lines.push(fmt(advanced, function(s){ return s.name + " — ₱" + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   lines.push("");
   lines.push("✅ PAID (" + paid.length + ") — fully paid");
-  lines.push(fmt(paid, function(s){ return s.name + " — PHP " + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  lines.push(fmt(paid, function(s){ return s.name + " — ₱" + s.totalPaid.toLocaleString() + " paid (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   if (none.length) {
     lines.push("");
-    lines.push("⚪ NO PAYMENTS (" + none.length + ") — PHP " + noneTotal.toLocaleString() + " total owed");
-    lines.push(fmt(none, function(s){ return s.name + " — owe PHP " + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+    lines.push("⚪ NO PAYMENTS (" + none.length + ") — ₱" + noneTotal.toLocaleString() + " total owed");
+    lines.push(fmt(none, function(s){ return s.name + " — owe ₱" + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   }
   lines.push("");
-  lines.push("🔴 UNPAID (" + unpaid.length + ") — PHP " + (unpaidTotal + noneTotal).toLocaleString() + " total owed");
-  lines.push(fmt(unpaid, function(s){ return s.name + " — owe PHP " + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
+  lines.push("🔴 UNPAID (" + unpaid.length + ") — ₱" + (unpaidTotal + noneTotal).toLocaleString() + " total owed");
+  lines.push(fmt(unpaid, function(s){ return s.name + " — owe ₱" + s.debt.toLocaleString() + " (" + s.weeksCovered + "/" + validWeeks + " weeks)"; }));
   lines.push("");
   lines.push("Please settle your class fund contribution as soon as possible.");
   lines.push("");
   lines.push("Thank you!");
 
-  navigator.clipboard.writeText(lines.join("\n"))
+  navigator.clipboard.writeText(lines.join("\r\n"))
     .then(function(){ showToast("GC reminder copied!", "success"); })
     .catch(function(){ showToast("Copy failed", "error"); });
 }
