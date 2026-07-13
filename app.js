@@ -940,6 +940,7 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
 // ================= SPECIAL ASSESSMENTS =================
 var _currentAssessment = null;
 var _assessmentFilter = "all";
+var _assessmentSearch = "";
 
 function startAssessmentRecorder(){
   var desc = ($("specialAssessmentDesc")?.value || "").trim();
@@ -992,11 +993,14 @@ function renderAssessmentRecorder(){
     '<button class="assess-filter-btn filter-btn ' + (_assessmentFilter === "unapplied" ? "active" : "") + '" onclick="setAssessmentFilter(\'unapplied\')">○ Unapplied</button>' +
   '</div>';
 
+  var searchHtml = '<input id="assessSearch" placeholder="Search student..." oninput="setAssessmentSearch(this.value)" style="margin-bottom:8px;" value="' + escHtml(_assessmentSearch) + '">';
+
   var html =
     '<div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);">' +
       '<strong style="font-size:15px;">📋 ' + escHtml(desc) + '</strong> — ₱' + amount.toLocaleString() + ' per student' +
       dueDateLine +
     '</div>' +
+    searchHtml +
     filterBar +
     '<div style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">';
 
@@ -1005,6 +1009,7 @@ function renderAssessmentRecorder(){
     var applied = idx !== -1;
     var isOverdue = !applied && _currentAssessment.dueDate && new Date(_currentAssessment.dueDate + "T23:59:59") < now;
 
+    if(_assessmentSearch && !s.name.toLowerCase().includes(_assessmentSearch)) return;
     if(_assessmentFilter === "applied" && !applied) return;
     if(_assessmentFilter === "unapplied" && applied) return;
 
@@ -1115,6 +1120,7 @@ function removeAssessmentFromStudent(studentId){
 function clearAssessmentRecorder(){
   _currentAssessment = null;
   _assessmentFilter = "all";
+  _assessmentSearch = "";
   $("specialAssessmentDesc").value = "";
   $("specialAssessmentAmount").value = "";
   $("specialAssessmentDate").value = "";
@@ -1153,6 +1159,12 @@ function setAssessmentFilter(f){
   btns.forEach(function(b){ b.classList.remove("active"); });
   var btn = document.querySelector("#specialAssessmentRecorder .assess-filter-btn[onclick*=\"'" + f + "'\"]");
   if(btn) btn.classList.add("active");
+  renderAssessmentRecorder();
+}
+
+// ================= ASSESSMENT SEARCH =================
+function setAssessmentSearch(value){
+  _assessmentSearch = value.toLowerCase().trim();
   renderAssessmentRecorder();
 }
 
