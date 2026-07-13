@@ -938,44 +938,139 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
 }
 
 // ================= SPECIAL ASSESSMENTS =================
-function addSpecialAssessment(){
+var _currentAssessment = null;
+
+function startAssessmentRecorder(){
   var desc = ($("specialAssessmentDesc")?.value || "").trim();
   var amount = toNumber($("specialAssessmentAmount")?.value);
-  if(!desc){
-    showToast("Enter a description for the assessment", "error");
-    return;
-  }
-  if(amount <= 0){
-    showToast("Enter a valid amount", "error");
-    return;
-  }
-  if(!students.length){
-    showToast("No students to apply assessment to", "error");
-    return;
-  }
+  if(!desc){ showToast("Enter a description", "error"); return; }
+  if(amount <= 0){ showToast("Enter a valid amount", "error"); return; }
+  if(!students.length){ showToast("No students", "error"); return; }
 
-  var now = new Date();
-  var month = now.toLocaleString("en-US", {month:"long", year:"numeric"});
-  var date = now.toLocaleString();
-  var _uid = Date.now() + "_" + Math.random().toString(36).slice(2,8);
+  _currentAssessment = { description: desc, amount: amount };
+  $("specialAssessmentForm").style.display = "none";
+  renderAssessmentRecorder();
+}
+
+function renderAssessmentRecorder(){
+  var container = $("specialAssessmentRecorder");
+  if(!container) return;
+  if(!_currentAssessment){ container.innerHTML = ""; return; }
+
+  var desc = _currentAssessment.description;
+  var amount = _currentAssessment.amount;
+  var appliedCount = 0;
+
+  var html =
+    '<div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.2);">' +
+      '<strong style="font-size:15px;">📋 ' + escHtml(desc) + '</strong> — ₱' + amount.toLocaleString() + ' per student' +
+    '</div>' +
+    '<div style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">';
 
   students.forEach(function(s){
-    if(!Array.isArray(s.specialAssessments)) s.specialAssessments = [];
-    s.specialAssessments.push({
-      description: desc,
-      amount: amount,
-      date: date,
-      month: month,
-      _uid: _uid
-    });
+    var idx = (s.specialAssessments||[]).findIndex(function(a){ return a.description === desc && toNumber(a.amount) === amount; });
+    var applied = idx !== -1;
+    if(applied) appliedCount++;
+
+    html +=
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;background:' + (applied ? 'rgba(16,185,129,.08)' : 'rgba(255,255,255,.03)') + ';border:1px solid ' + (applied ? 'rgba(16,185,129,.15)' : 'transparent') + ';">' +
+        '<div style="display:flex;align-items:center;gap:10px;min-width:0">' +
+          '<span class="av" style="background:' + getAvatarColor(s.name) + ';width:32px;height:32px;font-size:12px">' + getInitials(s.name) + '</span>' +
+          '<span style="font-size:14px;font-weight:600;">' + escHtml(s.name) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+          '<span style="font-size:13px;color:var(--muted);">₱' + amount.toLocaleString() + '</span>';
+    if(applied){
+      html +=
+            '<span class="chip" style="font-size:11px;background:rgba(16,185,129,.15);color:#34d399;border-color:rgba(16,185,129,.2)">✓ Applied</span>' +
+            '<button class="ghost-btn" style="min-height:30px;height:30px;padding:0 10px;font-size:11px;color:var(--rose);" onclick="removeAssessmentFromStudent(' + s.id + ')">Remove</button>';
+    }else{
+      html +=
+            '<button class="btn-pay" style="min-height:30px;height:30px;padding:0 12px;font-size:11px;" onclick="applyToStudent(' + s.id + ')">Apply</button>';
+    }
+    html += '</div></div>';
   });
 
-  $("specialAssessmentDesc").value = "";
-  $("specialAssessmentAmount").value = "";
+  var totalUnapplied = students.length - appliedCount;
+  html += '</div>' +
+    '<div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+      '<span style="font-size:13px;color:var(--muted);">Applied: ' + appliedCount + '/' + students.length + ' · Unapplied: ' + totalUnapplied + ' · Total: ₱' + (appliedCount * amount).toLocaleString() + '</span>' +
+      '<div style="display:flex;gap:8px;">' +
+        (totalUnapplied > 0 ? '<button class="btn-pay" onclick="applyAllRemaining()">Apply All Remaining</button>' : '') +
+        '<button class="ghost-btn" onclick="clearAssessmentRecorder()">Done</button>' +
+      '</div>' +
+    '</div>';
+
+  container.innerHTML = html;
+}
+
+function applyToStudent(studentId){
+  if(!_currentAssessment) return;
+  var s = students.find(function(x){ return x.id === studentId; });
+  if(!s) return;
+  if((s.specialAssessments||[]).some(function(a){ return a.description === _currentAssessment.description && toNumber(a.amount) === _currentAssessment.amount; })) return;
+
+  var now = new Date();
+  if(!Array.isArray(s.specialAssessments)) s.specialAssessments = [];
+  s.specialAssessments.push({
+    description: _currentAssessment.description,
+    amount: _currentAssessment.amount,
+    date: now.toLocaleString(),
+    month: now.toLocaleString("en-US", {month:"long", year:"numeric"}),
+    _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
+  });
 
   save();
-  render();
-  showToast("₱" + amount.toLocaleString() + " (" + escHtml(desc) + ") applied to " + students.length + " students", "success");
+  renderAssessmentRecorder();
+}
+
+function applyAllRemaining(){
+  if(!_currentAssessment) return;
+  var count = 0;
+  students.forEach(function(s){
+    if(!(s.specialAssessments||[]).some(function(a){ return a.description === _currentAssessment.description && toNumber(a.amount) === _currentAssessment.amount; })){
+      var now = new Date();
+      if(!Array.isArray(s.specialAssessments)) s.specialAssessments = [];
+      s.specialAssessments.push({
+        description: _currentAssessment.description,
+        amount: _currentAssessment.amount,
+        date: now.toLocaleString(),
+        month: now.toLocaleString("en-US", {month:"long", year:"numeric"}),
+        _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
+      });
+      count++;
+    }
+  });
+  if(count > 0){ save(); renderAssessmentRecorder(); }
+  showToast("Applied to " + count + " remaining students", "success");
+}
+
+function removeAssessmentFromStudent(studentId){
+  if(!_currentAssessment) return;
+  var s = students.find(function(x){ return x.id === studentId; });
+  if(!s || !s.specialAssessments) return;
+
+  var idx = s.specialAssessments.findIndex(function(a){ return a.description === _currentAssessment.description && toNumber(a.amount) === _currentAssessment.amount; });
+  if(idx === -1) return;
+
+  var removed = s.specialAssessments.splice(idx, 1)[0];
+  save();
+  renderAssessmentRecorder();
+  showToast("Assessment removed", "success");
+  showUndoToast(function(){
+    s.specialAssessments.push(removed);
+    save();
+    renderAssessmentRecorder();
+  });
+}
+
+function clearAssessmentRecorder(){
+  _currentAssessment = null;
+  $("specialAssessmentDesc").value = "";
+  $("specialAssessmentAmount").value = "";
+  $("specialAssessmentForm").style.display = "";
+  var container = $("specialAssessmentRecorder");
+  if(container) container.innerHTML = "";
 }
 
 function deleteSpecialAssessment(studentId, uid){
@@ -1841,6 +1936,8 @@ function render(){
   if(typeof renderBulkTable === "function" && _bulkPayVisible){
     renderBulkTable();
   }
+
+  if(_currentAssessment) renderAssessmentRecorder();
 }
 
  // ================= DROPDOWN =================

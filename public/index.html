@@ -455,10 +455,13 @@
 
           <div class="card">
             <h2 style="margin:0 0 6px;font-size:18px;">📋 Record Special Assessment</h2>
-            <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">One-time extra contributions (e.g., project fees, field trips). Applied to all students at once.</p>
-            <input id="specialAssessmentDesc" placeholder="Description (e.g., Science Project Fund)">
-            <input id="specialAssessmentAmount" type="number" min="0" placeholder="Amount per student">
-            <button onclick="addSpecialAssessment()">Apply to All Students</button>
+            <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">One-time extra contributions (e.g., project fees, field trips). Record each student individually to track who has paid.</p>
+            <div id="specialAssessmentForm">
+              <input id="specialAssessmentDesc" placeholder="Description (e.g., Science Project Fund)">
+              <input id="specialAssessmentAmount" type="number" min="0" placeholder="Amount per student">
+              <button onclick="startAssessmentRecorder()">Show Students</button>
+            </div>
+            <div id="specialAssessmentRecorder" style="margin-top:12px;"></div>
           </div>
         </section>
 
