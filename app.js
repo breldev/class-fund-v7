@@ -3815,25 +3815,17 @@ function initFromStorage(){
   finishInit();
 }
 window.onload = () => {
-  if (typeof firebaseData !== "undefined") {
-    var hasLocalStudents = localStorage.getItem("students") !== null;
-    var user = typeof cfAuth !== "undefined" && cfAuth.getCurrentUser && cfAuth.getCurrentUser();
+  initFromStorage();
 
-    if (hasLocalStudents && user) {
+  if (typeof firebaseData !== "undefined") {
+    var user = typeof cfAuth !== "undefined" && cfAuth.getCurrentUser && cfAuth.getCurrentUser();
+    if (user) {
       firebaseData.syncAllToFirestore().then(function(){
         return firebaseData.syncAllFromFirestore();
       }).then(function(){
         initFromStorage();
-      }).catch(function(){
-        initFromStorage();
-      });
-    } else {
-      firebaseData.syncAllFromFirestore().then(function(){
-        initFromStorage();
-      }).catch(function(){ initFromStorage(); });
+      }).catch(function(){});
     }
-  } else {
-    initFromStorage();
   }
 };
 function finishInit(){
@@ -3894,10 +3886,7 @@ function finishInit(){
   applyPrefs();
 
   renderHistory();
-  renderSelect();
   renderCalendar();
-  renderArchive();
-  renderAnalytics();
   checkMonthReset();
   render();
 
@@ -3912,11 +3901,11 @@ function finishInit(){
     pdfBtn.style.display = (typeof window.jspdf === "object" || typeof window.jsPDF === "function") ? "" : "none";
   }
 
-  render();
-
-  // Sparkline charts on dashboard
-  renderSparkline();
-  renderExpenseTrendChart();
+  // Sparkline charts on dashboard (deferred for initial paint)
+  setTimeout(function(){
+    renderSparkline();
+    renderExpenseTrendChart();
+  }, 0);
 
   // Auto-backup reminder
   checkAutoBackup();
