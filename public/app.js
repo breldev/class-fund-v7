@@ -849,6 +849,8 @@ function addPayment(){
     _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
   });
 
+  addPaymentToHistory({ student: s.name, amount, date: now.toLocaleString(), month: now.toLocaleString("en-US",{month:"long",year:"numeric"}), week: getCurrentWeek() });
+
   $("paymentAmount").value = "";
   save();
   render();
@@ -923,6 +925,8 @@ function assignUnidentifiedFund(fundId, studentId, assignAmount){
     month: now.toLocaleString("en-US", {month: "long", year: "numeric"}),
     _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
   });
+
+  addPaymentToHistory({ student: student.name, amount: assignAmount, date: now.toLocaleString(), month: now.toLocaleString("en-US",{month:"long",year:"numeric"}), week: week });
 
   var remaining = fund.amount - assignAmount;
   if (remaining <= 0) {
@@ -1071,6 +1075,8 @@ function applyToStudent(studentId){
     _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
   });
 
+  addPaymentToHistory({ student: s.name, amount: _currentAssessment.amount, date: _currentAssessment.date, month: _currentAssessment.month, week: "", type: "special_assessment", description: _currentAssessment.description });
+
   save();
   renderAssessmentRecorder();
   renderAssessmentHistory();
@@ -1090,6 +1096,7 @@ function applyAllRemaining(){
         dueDate: _currentAssessment.dueDate || "",
         _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8)
       });
+      addPaymentToHistory({ student: s.name, amount: _currentAssessment.amount, date: _currentAssessment.date, month: _currentAssessment.month, week: "", type: "special_assessment", description: _currentAssessment.description });
       count++;
     }
   });
@@ -1171,6 +1178,12 @@ function setAssessmentSearch(value){
     input.focus();
     input.selectionStart = input.selectionEnd = input.value.length;
   }
+}
+
+// ================= PAYMENT HISTORY HELPER =================
+function addPaymentToHistory(record){
+  paymentHistory.push(record);
+  localStorage.setItem("paymentHistory", JSON.stringify(paymentHistory));
 }
 
 // ================= ASSESSMENT HISTORY =================
@@ -2364,6 +2377,7 @@ function bulkPayChecked(){
     if(!s) return;
 
     s.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek(), _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8) });
+    addPaymentToHistory({ student: s.name, amount: amount, date: date, month: month, week: getCurrentWeek() });
     count++;
   });
 
@@ -3323,49 +3337,68 @@ function renderHistory(){
     return true;
   });
 
-  // Pagination
-  var totalPages = Math.max(1, Math.ceil(filtered.length / _historyPageSize));
-  if(_historyPage > totalPages) _historyPage = totalPages;
-  var startIdx = (_historyPage - 1) * _historyPageSize;
-  var pageRecords = filtered.slice(startIdx, startIdx + _historyPageSize);
-
   var html = "";
 
-  if(pageRecords.length === 0){
-    container.innerHTML = '<div class="card" style="text-align:center;padding:30px;"><p style="margin:0;font-size:15px;">No payment records found.</p><p style="margin:0;font-size:13px;color:var(--muted);">' +
-      (filtered.length === 0 ? "No records match your filters." : "") + '</p></div>';
-    renderPagination(filtered.length, totalPages);
+  if(filtered.length === 0){
+    container.innerHTML = '<div class="card" style="text-align:center;padding:30px;"><p style="margin:0;font-size:15px;">No payment records found.</p><p style="margin:0;font-size:13px;color:var(--muted);">No records match your filters.</p></div>';
     return;
   }
 
-  // Map from filtered index to original index
-  pageRecords.forEach(function(record){
-    var origIdx = paymentHistory.indexOf(record);
-    var weekLabel = record.week ? " · Week " + record.week : "";
-    var typeBadge = record.type === "special_assessment" ? ' <span class="chip" style="font-size:10px;background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.2);padding:2px 6px;border-radius:6px;white-space:nowrap">📋 Special</span>' : "";
-    var descLabel = record.description ? " · " + escHtml(record.description) : "";
+  // Group by month (newest first)
+  var groups = {};
+  filtered.forEach(function(record){
+    if(!groups[record.month]) groups[record.month] = [];
+    groups[record.month].push(record);
+  });
+
+  var monthKeys = Object.keys(groups).sort(function(a,b){
+    return new Date(b) - new Date(a);
+  });
+
+  var currentMonth = new Date().toLocaleString("en-US", {month:"long", year:"numeric"});
+
+  monthKeys.forEach(function(monthKey){
+    var records = groups[monthKey];
+    var isCurrent = monthKey === currentMonth;
+    var isFiltered = _historyMonthFilter && monthKey !== _historyMonthFilter;
 
     html +=
-    '<div class="card history-card" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">' +
-      '<div style="display:flex;align-items:center;gap:14px;min-width:0">' +
-        '<span class="av" style="background:' + getAvatarColor(record.student) + ';width:40px;height:40px;font-size:15px;border-radius:50%">' + getInitials(record.student) + '</span>' +
-        '<div style="min-width:0">' +
-          "<strong style=\"font-size:15px\">" + escHtml(record.student) + typeBadge + "</strong>" +
-          "<div style=\"display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:2px;flex-wrap:wrap;\">" +
-            "<span>💰 ₱" + record.amount + "</span>" +
-            (record.type === "special_assessment" && record.description ? "<span>📋 " + escHtml(record.description) + "</span>" : "") +
-            "<span>📅 " + record.date + "</span>" +
-            "<span>📁 " + record.month + "</span>" + descLabel +
-            (weekLabel ? "<span>📆" + weekLabel + "</span>" : "") +
-          "</div>" +
-        "</div>" +
-      "</div>" +
-      '<button class="ghost-btn" style="min-height:34px;height:34px;padding:0 12px;font-size:12px;flex-shrink:0" onclick="deleteHistoryPayment(' + origIdx + ')" title="Delete record">🗑</button>' +
-    "</div>";
+      '<details ' + (isCurrent || isFiltered ? 'open' : '') + ' style="margin-bottom:8px;border-radius:10px;overflow:hidden;border:1px solid var(--glass-border);">' +
+        '<summary style="cursor:pointer;padding:12px 16px;background:' + (isCurrent ? 'rgba(99,102,241,.1)' : 'rgba(255,255,255,.03)') + ';font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;">' +
+          escHtml(monthKey) +
+          '<span style="font-size:12px;color:var(--muted);font-weight:400;">(' + records.length + ' record' + (records.length !== 1 ? "s" : "") + ')</span>' +
+          (isCurrent ? '<span class="chip" style="font-size:10px;background:var(--accent);color:#fff;border:none;padding:2px 8px;">Current</span>' : '') +
+        '</summary>' +
+        '<div style="padding:8px 12px;display:flex;flex-direction:column;gap:4px;">';
+
+      records.forEach(function(record){
+        var origIdx = paymentHistory.indexOf(record);
+        var weekLabel = record.week ? " · Week " + record.week : "";
+        var typeBadge = record.type === "special_assessment" ? ' <span class="chip" style="font-size:10px;background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.2);padding:2px 6px;border-radius:6px;white-space:nowrap">📋 Special</span>' : "";
+        var descLabel = record.description ? " · " + escHtml(record.description) : "";
+
+        html +=
+          '<div class="card history-card" style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">' +
+            '<div style="display:flex;align-items:center;gap:12px;min-width:0">' +
+              '<span class="av" style="background:' + getAvatarColor(record.student) + ';width:36px;height:36px;font-size:13px;border-radius:50%">' + getInitials(record.student) + '</span>' +
+              '<div style="min-width:0">' +
+                "<strong style=\"font-size:14px\">" + escHtml(record.student) + typeBadge + "</strong>" +
+                "<div style=\"display:flex;gap:10px;font-size:12px;color:var(--muted);margin-top:2px;flex-wrap:wrap;\">" +
+                  "<span>💰 ₱" + record.amount + "</span>" +
+                  (record.type === "special_assessment" && record.description ? "<span>📋 " + escHtml(record.description) + "</span>" : "") +
+                  "<span>📅 " + record.date + "</span>" + descLabel +
+                  (weekLabel ? "<span>📆" + weekLabel + "</span>" : "") +
+                "</div>" +
+              "</div>" +
+            "</div>" +
+            '<button class="ghost-btn" style="min-height:30px;height:30px;padding:0 10px;font-size:11px;flex-shrink:0" onclick="deleteHistoryPayment(' + origIdx + ')" title="Delete record">🗑</button>' +
+          "</div>";
+      });
+
+    html += '</div></details>';
   });
 
   container.innerHTML = html;
-  renderPagination(filtered.length, totalPages);
 }
 
 function renderPagination(totalRecords, totalPages){
@@ -3447,41 +3480,6 @@ function checkMonthReset(){
   if(savedMonth === currentMonth){
     return;
   }
-
-  // Save old payments to permanent history (audit trail only — balances persist)
-  students.forEach(student=>{
-
-    student.payments.forEach(payment=>{
-
-      paymentHistory.push({
-        student: student.name,
-        amount: payment.amount,
-        date: payment.date,
-        month: payment.month || savedMonth,
-        week: payment.week || ""
-      });
-
-    });
-
-    // Also copy special assessments to history
-    (student.specialAssessments||[]).forEach(function(assessment){
-      paymentHistory.push({
-        student: student.name,
-        amount: assessment.amount,
-        date: assessment.date,
-        month: assessment.month || savedMonth,
-        week: "",
-        type: "special_assessment",
-        description: assessment.description || "Special Assessment"
-      });
-    });
-
-  });
-
-  localStorage.setItem(
-    "paymentHistory",
-    JSON.stringify(paymentHistory)
-  );
 
   localStorage.setItem(
     "currentMonth",
@@ -4531,6 +4529,7 @@ function payAll(amount){
     var month = now.toLocaleString("en-US",{month:"long",year:"numeric"});
     students.forEach(function(student){
       student.payments.push({ amount: amount, type: "Cash", date: date, month: month, week: getCurrentWeek(), _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8) });
+      addPaymentToHistory({ student: student.name, amount: amount, date: date, month: month, week: getCurrentWeek() });
     });
     save();
     render();
@@ -4621,6 +4620,7 @@ function addModalPayment(id){
   if(!s) return;
   var now = new Date();
   s.payments.push({ amount: amount, type: "Cash", date: now.toLocaleString(), month: now.toLocaleString("en-US",{month:"long",year:"numeric"}), week: getCurrentWeek(), _uid: Date.now() + "_" + Math.random().toString(36).slice(2,8) });
+  addPaymentToHistory({ student: s.name, amount: amount, date: now.toLocaleString(), month: now.toLocaleString("en-US",{month:"long",year:"numeric"}), week: getCurrentWeek() });
   save();
   render();
   viewStudent(id);
