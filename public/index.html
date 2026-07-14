@@ -42,17 +42,19 @@
         </div>
       </div>
 
-      <button class="nav-btn active" onclick="showPage('dashboard')" data-page="dashboard"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>Dashboard</button>
-      <button class="nav-btn" onclick="showPage('students')" data-page="students"><span class="nav-icon"><i data-lucide="users"></i></span>Students</button>
-      <button class="nav-btn" onclick="showPage('payments')" data-page="payments"><span class="nav-icon"><i data-lucide="credit-card"></i></span>Payments</button>
-      <button class="nav-btn" onclick="showPage('expenses')" data-page="expenses"><span class="nav-icon"><i data-lucide="shopping-cart"></i></span>Expenses</button>
-      <button class="nav-btn" onclick="showPage('reports')" data-page="reports"><span class="nav-icon"><i data-lucide="file-text"></i></span>Reports</button>
-      <button class="nav-btn" onclick="showPage('calendar')" data-page="calendar"><span class="nav-icon"><i data-lucide="calendar"></i></span>Calendar</button>
-      <button class="nav-btn" onclick="showPage('archive')" data-page="archive"><span class="nav-icon"><i data-lucide="archive"></i></span>Archive</button>
-      <button class="nav-btn" onclick="showPage('analytics')" data-page="analytics"><span class="nav-icon"><i data-lucide="bar-chart-3"></i></span>Analytics</button>
-      <button class="nav-btn" onclick="showPage('history')" data-page="history"><span class="nav-icon"><i data-lucide="clock"></i></span>History</button>
+      <button class="nav-btn admin-only active" onclick="showPage('dashboard')" data-page="dashboard"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>Dashboard</button>
+      <button class="nav-btn admin-only" onclick="showPage('students')" data-page="students"><span class="nav-icon"><i data-lucide="users"></i></span>Students</button>
+      <button class="nav-btn admin-only" onclick="showPage('payments')" data-page="payments"><span class="nav-icon"><i data-lucide="credit-card"></i></span>Payments</button>
+      <button class="nav-btn admin-only" onclick="showPage('expenses')" data-page="expenses"><span class="nav-icon"><i data-lucide="shopping-cart"></i></span>Expenses</button>
+      <button class="nav-btn admin-only" onclick="showPage('reports')" data-page="reports"><span class="nav-icon"><i data-lucide="file-text"></i></span>Reports</button>
+      <button class="nav-btn admin-only" onclick="showPage('calendar')" data-page="calendar"><span class="nav-icon"><i data-lucide="calendar"></i></span>Calendar</button>
+      <button class="nav-btn admin-only" onclick="showPage('archive')" data-page="archive"><span class="nav-icon"><i data-lucide="archive"></i></span>Archive</button>
+      <button class="nav-btn admin-only" onclick="showPage('analytics')" data-page="analytics"><span class="nav-icon"><i data-lucide="bar-chart-3"></i></span>Analytics</button>
+      <button class="nav-btn admin-only" onclick="showPage('history')" data-page="history"><span class="nav-icon"><i data-lucide="clock"></i></span>History</button>
+      <button class="nav-btn student-only" onclick="showStudentPage('student')" data-page="student" style="display:none"><span class="nav-icon"><i data-lucide="user"></i></span>My Status</button>
+      <button class="nav-btn student-only" onclick="showStudentPage('student-history')" data-page="student-history" style="display:none"><span class="nav-icon"><i data-lucide="clock"></i></span>My History</button>
 
-      <div class="sidebar-bottom">
+      <div class="sidebar-bottom admin-only">
         <button class="theme-toggle" onclick="toggleTheme()"><i data-lucide="moon"></i> <span>Light</span></button>
         <div class="accent-picker-wrapper">
           <span class="accent-dot active" style="background:linear-gradient(135deg,#6366f1,#818cf8)" onclick="setAccent('indigo')" data-accent="indigo"></span>
@@ -81,10 +83,11 @@
           </div>
         </div>
         <div class="topbar-right">
-          <button class="topbar-btn" onclick="showStudentCodeModal()" aria-label="Student View" title="Student View" style="font-size:11px;gap:4px"><i data-lucide="user" style="width:16px;height:16px"></i><span style="font-size:11px">Student</span></button>
-          <button class="topbar-btn login-btn" id="topbarLoginBtn" onclick="showLoginModal()" aria-label="Login" title="Login"><i data-lucide="log-in" style="width:16px;height:16px"></i></button>
-          <button class="topbar-btn login-btn" id="topbarLogoutBtn" onclick="handleLogout()" aria-label="Logout" title="Logout" style="display:none"><i data-lucide="log-out" style="width:16px;height:16px"></i></button>
-          <button class="topbar-btn" onclick="location.reload()" aria-label="Refresh" title="Refresh"><i data-lucide="refresh-cw"></i></button>
+          <button class="topbar-btn admin-only" onclick="showStudentCodeModal()" aria-label="Student View" title="Student View" style="font-size:11px;gap:4px"><i data-lucide="user" style="width:16px;height:16px"></i><span style="font-size:11px">Student</span></button>
+          <button class="topbar-btn student-only" onclick="exitStudentMode()" aria-label="Exit Student View" title="Exit Student View" style="display:none;font-size:11px;gap:4px"><i data-lucide="log-out" style="width:16px;height:16px"></i><span style="font-size:11px">Exit</span></button>
+          <button class="topbar-btn login-btn admin-only" id="topbarLoginBtn" onclick="showLoginModal()" aria-label="Login" title="Login"><i data-lucide="log-in" style="width:16px;height:16px"></i></button>
+          <button class="topbar-btn login-btn admin-only" id="topbarLogoutBtn" onclick="handleLogout()" aria-label="Logout" title="Logout" style="display:none"><i data-lucide="log-out" style="width:16px;height:16px"></i></button>
+          <button class="topbar-btn admin-only" onclick="location.reload()" aria-label="Refresh" title="Refresh"><i data-lucide="refresh-cw"></i></button>
           <div id="connIndicator" class="conn-indicator" title="Online"><span class="conn-dot conn-online"></span></div>
         </div>
       </header>
@@ -295,6 +298,15 @@
           </div>
 
           </div>
+        </section>
+
+        <!-- Student Dashboard -->
+        <section id="page-student" class="page ui-animate">
+          <div id="studentContent"></div>
+        </section>
+
+        <section id="page-student-history" class="page ui-animate">
+          <div id="studentHistoryContent"></div>
         </section>
 
         <section id="page-students" class="page ui-animate">

@@ -2299,8 +2299,6 @@ function copyStudentPayments(){
 
 // ================= BULK PAYMENT EDITOR =================
 var _bulkPayVisible = false;
-var _studentModeActive = false;
-var _studentModeStudent = null;
 
 function toggleBulkPay(){
   _bulkPayVisible = !_bulkPayVisible;
@@ -3023,10 +3021,6 @@ function animateVisibleUi(){
 }
 
 function showPage(page){
-  if(_studentModeActive){
-    showStudentPage(page);
-    return;
-  }
 
   document.querySelectorAll(".page").forEach(p=>{
     p.classList.remove("active");
@@ -3924,160 +3918,60 @@ function handleStudentCodeSubmit(){
     return;
   }
 
-  $("studentCodeSubmitBtn").disabled = false;
-  $("studentCodeSubmitBtn").textContent = "View My Status";
-  closeStudentCodeModal();
-  enterStudentMode(found);
-}
-
-// ================= STUDENT MODE =================
-function enterStudentMode(student){
-  _studentModeActive = true;
-  _studentModeStudent = student;
-  document.body.classList.add("student-mode");
-  localStorage.setItem("studentMode", JSON.stringify({ code: student.code, name: student.name }));
-  showStudentPage("student");
-}
-
-function exitStudentMode(){
-  _studentModeActive = false;
-  _studentModeStudent = null;
-  document.body.classList.remove("student-mode");
-  localStorage.removeItem("studentMode");
-  showPage("dashboard");
-}
-
-function showStudentPage(page){
-  if(!_studentModeActive) return;
-
-  var allowed = ["student", "student-history"];
-  if(allowed.indexOf(page) === -1) page = "student";
-
-  document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
-  var el = document.getElementById("page-" + page);
-  if(el) el.classList.add("active");
-
-  document.querySelectorAll(".nav-btn").forEach(function(b){ b.classList.remove("active"); });
-  var navBtn = document.querySelector('.nav-btn[data-page="' + page + '"]');
-  if(navBtn) navBtn.classList.add("active");
-
-  if(page === "student") renderStudentDashboard();
-  if(page === "student-history") renderStudentHistory();
-}
-
-function renderStudentDashboard(){
-  var s = _studentModeStudent;
-  if(!s) return;
-
-  var totalPaid = getTotal(s);
+  // Calculate student stats
+  var totalPaid = (found.payments || []).reduce(function(sum, p) { return sum + (p.amount || 0); }, 0);
   var currentWeek = getCurrentWeek();
   var totalExpected = currentWeek * weeklyFee;
-  var balance = Math.max(0, totalExpected - totalPaid);
+  var balance = totalExpected - totalPaid;
   var weeksPaid = Math.floor(totalPaid / weeklyFee);
-  var specials = s.specialAssessments || [];
-  var specialTotal = specials.reduce(function(a,b){ return a + toNumber(b.amount); }, 0);
-  var monthDebt = getMonthDebt(s);
-  var payCount = (s.payments||[]).length;
 
-  var statusIcon = "";
-  var statusLabel = "";
-  if(isStudentAdvanced(s)){ statusIcon = "⭐"; statusLabel = "Advanced"; }
-  else if(payCount === 0){ statusIcon = "⚪"; statusLabel = "No Payments"; }
-  else if(monthDebt > 0){ statusIcon = "🔴"; statusLabel = "With Debt"; }
-  else{ statusIcon = "🟢"; statusLabel = "Fully Updated"; }
+  // Build student view HTML
+  var html = '<h2 style="margin:0 0 4px;font-size:22px;font-weight:800">Welcome, ' + escHtml(found.name) + '</h2>';
+  html += '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:20px">Your payment status for this class</p>';
 
-  var html = "";
-  html += '<div class="stu-dash">';
-
-  // Welcome header
-  html += '<div class="stu-header">';
-  html += '<div class="stu-avatar">' + statusIcon + '</div>';
-  html += '<div><h1 class="stu-name">' + escHtml(s.name) + '</h1>';
-  html += '<p class="stu-code">Code: <strong>' + escHtml(s.code || "—") + '</strong> · ' + statusLabel + '</p></div>';
+  // Stats cards
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">';
+  html += '<div style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:16px;text-align:center">';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Total Paid</div>';
+  html += '<div style="font-size:24px;font-weight:800;color:var(--accent)">₱' + totalPaid.toLocaleString() + '</div>';
+  html += '</div>';
+  html += '<div style="background:rgba(' + (balance > 0 ? '239,68,68' : '34,197,94') + ',.15);border:1px solid rgba(' + (balance > 0 ? '239,68,68' : '34,197,94') + ',.2);border-radius:12px;padding:16px;text-align:center">';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">' + (balance > 0 ? 'Balance Due' : 'Fully Paid') + '</div>';
+  html += '<div style="font-size:24px;font-weight:800;color:' + (balance > 0 ? 'var(--rose)' : 'var(--green)') + '">₱' + Math.abs(balance).toLocaleString() + '</div>';
+  html += '</div>';
   html += '</div>';
 
-  // Metrics row
-  html += '<div class="stu-metrics">';
-  html += '<div class="stu-metric stu-metric-paid"><span class="stu-metric-label">Total Paid</span><span class="stu-metric-value">₱' + totalPaid.toLocaleString() + '</span></div>';
-  html += '<div class="stu-metric stu-metric-expected"><span class="stu-metric-label">Expected</span><span class="stu-metric-value">₱' + totalExpected.toLocaleString() + '</span></div>';
-  html += '<div class="stu-metric stu-metric-balance"><span class="stu-metric-label">' + (balance > 0 ? "Balance Due" : "All Paid") + '</span><span class="stu-metric-value">' + (balance > 0 ? "₱" + balance.toLocaleString() : "✅") + '</span></div>';
-  html += '<div class="stu-metric stu-metric-weeks"><span class="stu-metric-label">Weeks Paid</span><span class="stu-metric-value">' + weeksPaid + '/' + currentWeek + '</span></div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">';
+  html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Weeks Paid</div>';
+  html += '<div style="font-size:20px;font-weight:700">' + weeksPaid + ' / ' + currentWeek + '</div>';
+  html += '</div>';
+  html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center">';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Expected Total</div>';
+  html += '<div style="font-size:20px;font-weight:700">₱' + totalExpected.toLocaleString() + '</div>';
+  html += '</div>';
   html += '</div>';
 
-  // Payment History
-  var payments = (s.payments || []).slice().reverse();
-  html += '<div class="stu-section"><h2 class="stu-section-title">📅 Payment History</h2>';
-  if(payments.length){
-    html += '<div class="stu-list">';
-    payments.forEach(function(p, i){
-      html += '<div class="stu-list-item"><span class="stu-list-num">' + (i+1) + '</span><span class="stu-list-date">' + escHtml(p.date || "—") + (p.week ? " (Week " + p.week + ")" : "") + '</span><span class="stu-list-amt">₱' + toNumber(p.amount).toLocaleString() + '</span></div>';
+  // Payment history
+  var payments = (found.payments || []).slice().reverse();
+  if (payments.length > 0) {
+    html += '<h3 style="font-size:14px;font-weight:700;margin-bottom:10px">Payment History</h3>';
+    html += '<div style="max-height:200px;overflow-y:auto">';
+    html += '<table class="table" style="width:100%"><thead><tr><th>Date</th><th>Week</th><th style="text-align:right">Amount</th></tr></thead><tbody>';
+    payments.forEach(function(p) {
+      html += '<tr><td style="font-size:13px">' + (p.date || '—') + '</td><td style="font-size:13px">' + (p.week || '—') + '</td><td style="text-align:right;font-weight:600;color:var(--green)">₱' + (p.amount || 0).toLocaleString() + '</td></tr>';
     });
+    html += '</tbody></table>';
     html += '</div>';
-  }else{
-    html += '<div class="stu-empty">No payments recorded yet</div>';
-  }
-  html += '</div>';
-
-  // Special Assessments
-  if(specials.length){
-    html += '<div class="stu-section"><h2 class="stu-section-title">📋 Special Assessments</h2>';
-    html += '<div class="stu-list">';
-    specials.forEach(function(a){
-      html += '<div class="stu-list-item"><span class="stu-list-num">✅</span><span class="stu-list-date">' + escHtml(a.description) + (a.date ? " (" + a.date + ")" : "") + '</span><span class="stu-list-amt stu-list-paid">₱' + toNumber(a.amount).toLocaleString() + ' — Paid</span></div>';
-    });
-    html += '</div></div>';
+  } else {
+    html += '<div style="text-align:center;padding:20px;color:var(--text-secondary)">No payments recorded yet</div>';
   }
 
-  // Outstanding assessments (all unique assessments - student's)
-  var allAssessments = gatherAllSpecialAssessments();
-  var studentKeys = {};
-  specials.forEach(function(a){ studentKeys[a.description + "|" + a.amount] = true; });
-  var outstanding = allAssessments.filter(function(a){ return !studentKeys[a.description + "|" + a.amount]; });
-  if(outstanding.length){
-    html += '<div class="stu-section"><h2 class="stu-section-title">⚠️ Outstanding Assessments</h2>';
-    html += '<div class="stu-list">';
-    outstanding.forEach(function(a){
-      html += '<div class="stu-list-item"><span class="stu-list-num">❌</span><span class="stu-list-date">' + escHtml(a.description) + '</span><span class="stu-list-amt stu-list-unpaid">₱' + toNumber(a.amount).toLocaleString() + ' — Not Paid</span></div>';
-    });
-    html += '</div></div>';
-  }
+  html += '<p style="text-align:center;margin-top:20px;font-size:12px;color:var(--text-secondary)">Your code: <strong style="color:var(--accent);letter-spacing:2px">' + (found.code || '—') + '</strong></p>';
 
-  html += '</div>';
-
-  document.getElementById("studentContent").innerHTML = html;
-}
-
-function gatherAllSpecialAssessments(){
-  var map = {};
-  students.forEach(function(s){
-    (s.specialAssessments||[]).forEach(function(a){
-      var key = a.description + "|" + a.amount;
-      if(!map[key]) map[key] = { description: a.description, amount: a.amount };
-    });
-  });
-  return Object.keys(map).map(function(k){ return map[k]; });
-}
-
-function renderStudentHistory(){
-  var s = _studentModeStudent;
-  if(!s) return;
-
-  var html = '<div class="stu-dash">';
-  html += '<div class="stu-header"><div class="stu-avatar">📋</div><div><h1 class="stu-name">My Payment History</h1><p class="stu-code">' + escHtml(s.name) + '</p></div></div>';
-
-  var allPayments = (s.payments || []).slice().reverse();
-  if(allPayments.length){
-    html += '<div class="stu-section"><div class="stu-list">';
-    allPayments.forEach(function(p, i){
-      html += '<div class="stu-list-item"><span class="stu-list-num">' + (i+1) + '</span><span class="stu-list-date">' + escHtml(p.date || "—") + (p.week ? " (Week " + p.week + ")" : "") + '</span><span class="stu-list-amt">₱' + toNumber(p.amount).toLocaleString() + '</span></div>';
-    });
-    html += '</div></div>';
-  }else{
-    html += '<div class="stu-empty">No payments yet</div>';
-  }
-
-  html += '</div>';
-  document.getElementById("studentHistoryContent").innerHTML = html;
+  $("studentViewContent").innerHTML = html;
+  closeStudentCodeModal();
+  showStudentViewModal();
 }
 
 
@@ -4246,18 +4140,6 @@ function finishInit(){
 
   // Auto-backup reminder
   checkAutoBackup();
-
-  // Restore student mode if previously active
-  var savedStudent = localStorage.getItem("studentMode");
-  if(savedStudent){
-    try{
-      var data = JSON.parse(savedStudent);
-      if(data && data.code){
-        var found = students.find(function(s){ return s.code && s.code.toUpperCase() === data.code.toUpperCase(); });
-        if(found) enterStudentMode(found);
-      }
-    }catch(e){ localStorage.removeItem("studentMode"); }
-  }
 
   // Update "last saved" timestamp every 30s
   setInterval(updateLastSaved, 30000);
