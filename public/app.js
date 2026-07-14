@@ -300,11 +300,16 @@ function changePageSize(sz){
 // ================= SAVE =================
 function _saveStorage(){
   if (document.body.classList.contains("viewer-mode")) return;
-  localStorage.setItem("students", JSON.stringify(students));
-  localStorage.setItem("skippedWeeks", JSON.stringify(skippedWeeks));
-  localStorage.setItem("expenses", JSON.stringify(expenses));
-  localStorage.setItem("unidentifiedFunds", JSON.stringify(unidentifiedFunds));
-  localStorage.setItem("_lastLocalSave", Date.now().toString());
+  try {
+    localStorage.setItem("students", JSON.stringify(students));
+    localStorage.setItem("skippedWeeks", JSON.stringify(skippedWeeks));
+    localStorage.setItem("expenses", JSON.stringify(expenses));
+    localStorage.setItem("unidentifiedFunds", JSON.stringify(unidentifiedFunds));
+    localStorage.setItem("_lastLocalSave", Date.now().toString());
+  } catch(e) {
+    console.error("Storage save failed:", e);
+    showToast("Storage full! Export a backup now to avoid data loss.", "error");
+  }
 }
 function save(){
   _saveStorage();
@@ -1084,6 +1089,7 @@ function applyToStudent(studentId){
 
 function applyAllRemaining(){
   if(!_currentAssessment) return;
+  showConfirmDialog("Apply this assessment to all remaining students?", function(){
   var count = 0;
   students.forEach(function(s){
     if(!(s.specialAssessments||[]).some(function(a){ return a.description === _currentAssessment.description && toNumber(a.amount) === _currentAssessment.amount; })){
@@ -1102,6 +1108,7 @@ function applyAllRemaining(){
   });
   if(count > 0){ save(); renderAssessmentRecorder(); renderAssessmentHistory(); }
   showToast("Applied to " + count + " remaining students", "success");
+  });
 }
 
 function removeAssessmentFromStudent(studentId){
@@ -1112,15 +1119,12 @@ function removeAssessmentFromStudent(studentId){
   var idx = s.specialAssessments.findIndex(function(a){ return a.description === _currentAssessment.description && toNumber(a.amount) === _currentAssessment.amount; });
   if(idx === -1) return;
 
-  var removed = s.specialAssessments.splice(idx, 1)[0];
-  save();
-  renderAssessmentRecorder();
-  renderAssessmentHistory();
-  showToast("Assessment removed", "success");
-  showUndoToast(function(){
-    s.specialAssessments.push(removed);
+  showConfirmDialog("Remove this assessment from " + escHtml(s.name) + "?", function(){
+    var removed = s.specialAssessments.splice(idx, 1)[0];
     save();
     renderAssessmentRecorder();
+    renderAssessmentHistory();
+    showToast("Assessment removed", "success");
   });
 }
 
@@ -1145,17 +1149,12 @@ function deleteSpecialAssessment(studentId, uid){
   var idx = s.specialAssessments.findIndex(function(a){ return a._uid === uid; });
   if(idx === -1) return;
 
-  var removed = s.specialAssessments.splice(idx, 1)[0];
-
-  save();
-  render();
-  showToast("Assessment removed", "success");
-  showUndoToast(function(){
-    s.specialAssessments.push(removed);
-    s.specialAssessments.sort(function(a,b){ return (a.date || "").localeCompare(b.date || ""); });
+  var desc = s.specialAssessments[idx].description || "assessment";
+  showConfirmDialog("Delete " + escHtml(desc) + " from " + escHtml(s.name) + "?", function(){
+    var removed = s.specialAssessments.splice(idx, 1)[0];
     save();
     render();
-    viewStudent(studentId);
+    showToast("Assessment deleted", "success");
   });
 }
 
@@ -1671,19 +1670,22 @@ function deletePayment(id,i){
   if(!s || !s.payments[i]) return;
   const backup = {...s.payments[i]};
   const uid = backup._uid;
-  s.payments.splice(i, 1);
-  save();
-  render();
-  if(_modalStudentId && $("studentModal")?.style.display === "flex") viewStudent(_modalStudentId);
-  showUndoToast("Payment deleted", function(){
-    if(uid && s.payments.some(function(p){ return p._uid === uid; })) return;
-    var insertAt = Math.min(i, s.payments.length);
-    s.payments.splice(insertAt, 0, backup);
+  const amt = toNumber(backup.amount);
+  showConfirmDialog("Delete this ₱" + amt.toLocaleString() + " payment from " + escHtml(s.name) + "?", function(){
+    s.payments.splice(i, 1);
     save();
     render();
     if(_modalStudentId && $("studentModal")?.style.display === "flex") viewStudent(_modalStudentId);
-    showToast("Payment restored", "success");
-  }, 4000);
+    showUndoToast("Payment deleted", function(){
+      if(uid && s.payments.some(function(p){ return p._uid === uid; })) return;
+      var insertAt = Math.min(i, s.payments.length);
+      s.payments.splice(insertAt, 0, backup);
+      save();
+      render();
+      if(_modalStudentId && $("studentModal")?.style.display === "flex") viewStudent(_modalStudentId);
+      showToast("Payment restored", "success");
+    }, 4000);
+  });
 }
 
 // ================= EDIT PAYMENT =================
@@ -1837,6 +1839,9 @@ function render(){
   animateNumberRaw($("statNone"), counts.none, "");
   animateNumberRaw($("statCollected"), totalCollected, "₱");
   animateNumberRaw($("statDebtOwed"), totalDebtOwed, "₱");
+
+  var fc = $("filterCount");
+  if(fc) fc.textContent = counts.total + " of " + students.length + " students";
 
   // Pagination
   var totalFiltered = filtered.length;
@@ -2681,6 +2686,8 @@ function showToast(message, type){
 
   container.appendChild(toast);
 
+  toast.addEventListener("click", function(){ toast.remove(); }, { once: true });
+
   // Confetti chance for success toasts (1-in-4, visual delight)
   if(type !== "error" && Math.random() < .25 && typeof showConfetti === "function"){
     showConfetti();
@@ -2945,6 +2952,7 @@ function importBackup(event){
   var file = event.target.files?.[0];
   if(!file) return;
   showConfirmDialog("Import this backup? This will replace the current data saved in this browser.", function(){
+      showToast("Reading backup file...", "success");
       var reader = new FileReader();
     reader.onload = function(){
       try{
@@ -3614,7 +3622,7 @@ function viewStudent(id){
     '<div class="modal-payments">' +
       "<h3>Payments</h3>" +
       '<div class="modal-pay-form">' +
-        '<input id="modalPayAmount" type="number" placeholder="Amount" value="' + weeklyFee + '" style="width:100px;">' +
+        '<input id="modalPayAmount" type="number" inputmode="decimal" placeholder="Amount" value="' + weeklyFee + '" style="width:100px;">' +
         "<button onclick=\"addModalPayment(" + student.id + ')\">Add</button>' +
       "</div>" +
       '<div id="modalPayList">';

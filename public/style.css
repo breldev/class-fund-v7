@@ -3,6 +3,10 @@
    Do NOT remove or rename classes/IDs used by app.js
    ============================================================ */
 
+/* ---------- SKIP LINK ---------- */
+.skip-link { position: absolute; top: -100px; left: 16px; background: var(--accent-500); color: #fff; padding: 8px 16px; border-radius: var(--radius-sm); z-index: 9999; font-size: 14px; text-decoration: none; }
+.skip-link:focus { top: 16px; }
+
 /* ---------- CUSTOM PROPERTIES ---------- */
 :root {
   color-scheme: dark;
@@ -358,8 +362,10 @@ body {
 }
 
 .accent-dot {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
@@ -1062,6 +1068,9 @@ th {
   color: #334155;
 }
 
+/* Filter count */
+.filter-count { margin-left: auto; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+
 /* Sort header */
 .sort-header th {
   cursor: pointer;
@@ -1070,6 +1079,7 @@ th {
 }
 
 .sort-header th:hover { color: var(--accent-400); }
+.sort-header th:focus-visible { color: var(--accent-300); outline: 2px solid var(--accent-500); outline-offset: -2px; }
 
 /* Table rows */
 thead { position: sticky; top: 0; z-index: 2; }
@@ -1413,6 +1423,7 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
   gap: 10px;
   width: 100%;
 }
+@media (max-width: 480px) { .fund-split { flex-direction: column; gap: 6px; } }
 
 .fund-split .split-input { flex: 1; min-width: 0; }
 .expense-form { align-items: end; }
@@ -1506,6 +1517,7 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
   pointer-events: none;
   align-items: flex-end;
 }
+@media (max-width: 768px) { .toast-container { bottom: 110px; } }
 
 .toast {
   pointer-events: auto;
@@ -1668,8 +1680,8 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-xs);
@@ -2082,7 +2094,7 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
   opacity: 0;
   pointer-events: none;
   transition: opacity .25s ease;
-  z-index: -1;
+  z-index: 0;
 }
 
 .fab-container.open .fab-backdrop {
@@ -2186,7 +2198,7 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
 
 @media (max-width: 768px) {
   .fab-container {
-    bottom: 88px;
+    bottom: 100px;
     right: 14px;
   }
 }
@@ -2251,10 +2263,11 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
 .hist-btn {
   background: none !important;
   border: none !important;
-  padding: 0 4px !important;
+  padding: 0 8px !important;
   font-size: 13px !important;
   cursor: pointer;
-  min-height: auto !important;
+  min-height: 44px !important;
+  min-width: 44px !important;
   color: var(--muted) !important;
   box-shadow: none !important;
 }
@@ -2262,7 +2275,7 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
 .hist-btn:hover { color: var(--text) !important; transform: none !important; filter: none !important; }
 
 .hist-month-body {
-  overflow: hidden;
+  overflow-y: auto;
   transition: max-height .28s var(--ease), opacity .2s var(--ease);
   max-height: 500px;
   opacity: 1;
@@ -2806,9 +2819,11 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
     font-size: 15px;
   }
 
+  /* Override for tiny topbar buttons — keep 44px, not 48px */
+  .topbar-btn { min-width: 44px; min-height: 44px; width: 44px; height: 44px; }
+
   .card:has(input), .card:has(select) { align-items: stretch; }
 
-  .modal { align-items: end; padding: 12px; }
   .modal-content {
     width: 100%;
     max-height: 82dvh;
@@ -2833,7 +2848,7 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
   .table-upgraded tbody tr td:last-child { border-radius: 0 6px 6px 0; }
 
   th, td { padding: 10px 10px; font-size: 13px; }
-  td button { min-height: 38px; padding: 0 12px; font-size: 12px; }
+  td button { min-height: 44px; padding: 0 12px; font-size: 12px; }
   .import-actions { display: grid; grid-template-columns: 1fr; }
   textarea { min-height: 190px; }
   #archiveContainer .card,
@@ -2853,8 +2868,8 @@ thead th:first-child, thead th:nth-child(2) { z-index: 4; }
   .pag { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; }
   .pag-info { text-align: center; font-size: 11px; }
   .pag-ctrls { justify-content: center; flex-wrap: wrap; }
-  .pag-btn { min-height: 28px; height: 28px; padding: 0 8px; font-size: 11px; }
-  .pag-sel { min-height: 28px; height: 28px; font-size: 11px; }
+  .pag-btn { min-height: 44px; height: 44px; padding: 0 8px; font-size: 12px; }
+  .pag-sel { min-height: 44px; height: 44px; font-size: 12px; }
 
   /* Dashboard responsive */
   .dash-metrics { grid-template-columns: repeat(2,1fr); }
@@ -3101,9 +3116,8 @@ textarea:focus-visible,
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--panel);
-  overflow: hidden;
+  overflow: clip;
   position: relative;
-  animation: staggerFadeIn .45s var(--ease-out) both;
 }
 .dash-widget:nth-child(1) { animation-delay: .30s; }
 .dash-widget:nth-child(2) { animation-delay: .34s; }
@@ -3266,10 +3280,10 @@ textarea:focus-visible,
 .table-upgraded tbody tr {
   background: rgba(255, 255, 255, .02);
   border-radius: var(--radius-sm);
-  transition: transform .3s var(--ease-spring), box-shadow .35s var(--ease), background .3s var(--ease);
+  transition: transform .3s var(--ease-spring), box-shadow .3s var(--ease), border-color .25s var(--ease);
   position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .03), 0 2px 8px rgba(0, 0, 0, .04);
+  overflow: clip;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04);
   animation: rowSlideIn .4s var(--ease-out) both;
 }
 
@@ -3927,7 +3941,7 @@ button:hover::after {
     border-radius: var(--radius);
     background: rgba(255,255,255,.04);
     box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 0 0 1px rgba(255,255,255,.05);
-    overflow: hidden;
+    overflow: clip;
   }
 
   [data-theme="day"] #page-students .table-upgraded > tbody > tr,
@@ -4080,8 +4094,8 @@ button:hover::after {
     border-top-color: rgba(0,0,0,.06);
   }
   #page-students .table-upgraded > tbody > tr:not(.group-divider) td:nth-child(10) button {
-    min-height: 40px;
-    height: 40px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 18px;
     font-size: 13px;
   }
@@ -4166,8 +4180,8 @@ button:hover::after {
     border-top-color: rgba(0,0,0,.06);
   }
   #page-expenses .exp-tbl > tbody > tr td:nth-child(7) button {
-    min-height: 38px;
-    height: 38px;
+    min-height: 44px;
+    height: 44px;
     padding: 0 14px;
     font-size: 12px;
   }
@@ -4204,8 +4218,8 @@ button:hover::after {
 
   .bulk-tbl .compact-input {
     width: 70px;
-    min-height: 40px;
-    height: 40px;
+    min-height: 44px;
+    height: 44px;
     font-size: 15px;
     text-align: center;
   }
@@ -4297,7 +4311,7 @@ button:hover::after {
   .filter-bar .filter-btn {
     padding: 4px 12px;
     font-size: 12px;
-    min-height: 34px;
+    min-height: 44px;
     white-space: nowrap;
   }
 
@@ -4350,30 +4364,6 @@ button:hover::after {
   .dash-progress-section {
     padding: 18px 20px;
     margin-bottom: 16px;
-  }
-
-  .dash-metrics {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .dash-metric {
-    padding: 16px 18px;
-    border-radius: var(--radius-sm);
-    background: rgba(255,255,255,.03);
-    box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px rgba(255,255,255,.04);
-  }
-  .dash-metric .metric-value {
-    font-size: 22px;
-    font-weight: 800;
-    display: block;
-    margin-bottom: 2px;
-  }
-  .dash-metric .metric-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: var(--muted);
   }
 
   .dash-charts {
@@ -4485,7 +4475,7 @@ button:hover::after {
     width: 100%;
     max-height: 85dvh;
     border-radius: 20px 20px 0 0;
-    margin-top: 40px;
+    margin-top: 20px;
     padding: 20px 20px 24px;
     animation: sheetUp .35s var(--ease-out) both;
     position: relative;
@@ -4780,7 +4770,9 @@ html.student-mode .sidebar .logo { display: none; }
 }
 
 @media (max-width: 400px) {
-  .dash-status-row { grid-template-columns: repeat(2,1fr); }
+  .dash-status-row { grid-template-columns: repeat(3,1fr); gap: 4px; }
+  .dash-status-stat { padding: 8px 2px; }
+  .dash-status-num { font-size: 18px; }
 }
 
 

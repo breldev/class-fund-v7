@@ -20,6 +20,7 @@
   <meta name="theme-color" content="#6366f1">
 </head>
 <body>
+  <a href="#main" class="skip-link">Skip to main content</a>
   <div class="app">
     <!-- ============ SIDEBAR ============ -->
     <aside class="sidebar" id="sidebar">
@@ -84,7 +85,7 @@
       </header>
 
       <!-- ============ MAIN CONTENT ============ -->
-      <main class="main">
+      <main class="main" id="main">
         <section id="page-dashboard" class="page active ui-animate">
           <div id="dashContent">
 
@@ -380,18 +381,19 @@
               <button class="filter-btn" onclick="setFilter('debt')">Debt</button>
               <button class="filter-btn" onclick="setFilter('advanced')">Advanced</button>
               <button class="filter-btn" onclick="setFilter('none')">No Payments</button>
+              <span class="filter-count" id="filterCount"></span>
             </div>
             <table>
               <thead>
                 <tr class="sort-header">
                   <th style="width:32px;"><label class="bulk-check-label"><input type="checkbox" class="bulk-check-input" onchange="if(this.checked)selectAllStudents();else clearSelection();" title="Select all"><span class="bulk-check-box"></span></label></th>
                   <th style="width:36px;">#</th>
-                  <th onclick="setSort('name')">Name</th>
-                  <th onclick="setSort('paid')">Paid</th>
-                  <th onclick="setSort('month')">Month</th>
+                  <th onclick="setSort('name')" tabindex="0" role="button">Name</th>
+                  <th onclick="setSort('paid')" tabindex="0" role="button">Paid</th>
+                  <th onclick="setSort('month')" tabindex="0" role="button">Month</th>
                   <th>Progress</th>
-                  <th onclick="setSort('debt')">Debt</th>
-                  <th onclick="setSort('status')">Status</th>
+                  <th onclick="setSort('debt')" tabindex="0" role="button">Debt</th>
+                  <th onclick="setSort('status')" tabindex="0" role="button">Status</th>
                   <th>History</th>
                   <th>Action</th>
                   <th>Code</th>
@@ -424,7 +426,7 @@
           <div class="card">
             <input id="paymentStudentSearch" placeholder="Search student..." oninput="debouncedPaymentSearch()">
             <select id="studentSelect" onchange="renderPaymentsForSelectedStudent()"></select>
-            <input id="paymentAmount" type="number" min="0" placeholder="Amount">
+            <input id="paymentAmount" type="number" inputmode="decimal" min="0" placeholder="Amount">
             <button onclick="addPayment()">Add Payment</button>
           </div>
 
@@ -443,7 +445,7 @@
             </div>
             <div id="bulkPaySection">
               <div class="bulk-toolbar">
-                <input id="bulkDefaultAmount" type="number" min="0" value="5" class="compact-input">
+                <input id="bulkDefaultAmount" type="number" inputmode="decimal" min="0" value="5" class="compact-input">
                 <button id="bulkFillAllBtn" onclick="bulkFillAll()">Set All</button>
                 <span class="bulk-separator"></span>
                 <button onclick="bulkPayChecked()" class="btn-pay">✅ Pay Checked</button>
@@ -461,7 +463,7 @@
             <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">One-time extra contributions (e.g., project fees, field trips). Record each student individually to track who has paid.</p>
             <div id="specialAssessmentForm">
               <input id="specialAssessmentDesc" placeholder="Description (e.g., Science Project Fund)">
-              <input id="specialAssessmentAmount" type="number" min="0" placeholder="Amount per student">
+              <input id="specialAssessmentAmount" type="number" inputmode="decimal" min="0" placeholder="Amount per student">
               <input id="specialAssessmentDate" type="date" title="Assessment date">
               <input id="specialAssessmentDueDate" type="date" title="Due date (optional)">
               <button onclick="startAssessmentRecorder()">Show Students</button>
@@ -486,10 +488,10 @@
 
           <div class="card expense-form">
             <input id="expenseTitle" placeholder="Expense description">
-            <input id="expenseAmount" type="number" min="0" placeholder="Total amount">
+            <input id="expenseAmount" type="number" inputmode="decimal" min="0" placeholder="Total amount">
             <div id="fundSplit" class="fund-split" style="display:none;">
-              <input id="eventAmount" type="number" placeholder="From Event" class="split-input" oninput="updateSplitTotal()">
-              <input id="reserveAmount" type="number" placeholder="From Reserve" class="split-input" oninput="updateSplitTotal()">
+              <input id="eventAmount" type="number" inputmode="decimal" placeholder="From Event" class="split-input" oninput="updateSplitTotal()">
+              <input id="reserveAmount" type="number" inputmode="decimal" placeholder="From Reserve" class="split-input" oninput="updateSplitTotal()">
             </div>
             <input id="expenseDate" type="date">
             <select id="expenseFund" onchange="toggleFundSplit()">
@@ -677,7 +679,7 @@
   <div id="receiptModal" class="modal">
     <div class="modal-content receipt-modal-content" onclick="event.stopPropagation()">
       <span class="close" onclick="closeReceiptModal()" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeReceiptModal()">✕</span>
-      <img id="receiptPreviewImage" class="receipt-preview-image" alt="Receipt preview">
+      <img id="receiptPreviewImage" class="receipt-preview-image" alt="Receipt preview" loading="lazy">
     </div>
   </div>
 
@@ -759,7 +761,7 @@
       <span class="close" onclick="closeModalById('addUnidentifiedModal')" tabindex="0" role="button" onkeydown="if(event.key==='Enter')closeModalById('addUnidentifiedModal')">✕</span>
       <h2 style="margin:0 0 6px;font-size:20px;font-weight:800">Add Unidentified Fund</h2>
       <p style="color:var(--text-secondary);font-size:12px;margin-bottom:16px">Record money received but don't know who paid yet</p>
-      <input id="ufAmount" type="number" placeholder="Amount" min="1" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')handleAddUnidentifiedFund()">
+      <input id="ufAmount" type="number" inputmode="decimal" placeholder="Amount" min="1" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')handleAddUnidentifiedFund()">
       <input id="ufDate" type="date" style="margin-bottom:10px" onkeydown="if(event.key==='Enter')handleAddUnidentifiedFund()">
       <input id="ufNote" type="text" placeholder="Note (e.g., from treasurer, GCash)" style="margin-bottom:12px" onkeydown="if(event.key==='Enter')handleAddUnidentifiedFund()">
       <button onclick="handleAddUnidentifiedFund()" style="width:100%">Add Fund</button>
@@ -773,7 +775,7 @@
       <h2 style="margin:0 0 6px;font-size:20px;font-weight:800">Assign to Student</h2>
       <p style="color:var(--text-secondary);font-size:12px;margin-bottom:16px" id="assignFundInfo">Assigning ₱0</p>
       <select id="assignStudentSelect" style="margin-bottom:10px"><option value="">Select student...</option></select>
-      <input id="assignAmount" type="number" placeholder="Amount" min="1" style="margin-bottom:12px">
+      <input id="assignAmount" type="number" inputmode="decimal" placeholder="Amount" min="1" style="margin-bottom:12px">
       <button onclick="handleAssignUnidentifiedFund()" style="width:100%">Assign</button>
     </div>
   </div>
