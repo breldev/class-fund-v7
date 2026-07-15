@@ -9,13 +9,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#6366f1">
+  <meta name="theme-color" content="#0a0a0f">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Inter', -apple-system, sans-serif;
-      background: #0b0f1a;
+      background: #0a0a0f;
       color: #e2e8f0;
       min-height: 100vh;
       line-height: 1.6;
@@ -24,7 +24,7 @@
     .bg-mesh {
       position: fixed; inset: 0; z-index: 0;
       background:
-        radial-gradient(ellipse at 20% 50%, rgba(99,102,241,.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 20% 50%, rgba(124,92,252,.15) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(139,92,246,.12) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(52,211,153,.08) 0%, transparent 50%);
     }
@@ -36,17 +36,17 @@
       padding: 0 20px;
       background: rgba(7, 11, 20, 0.85);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+      border-bottom: 1px solid rgba(124, 92, 252, 0.08);
     }
     .topnav-brand {
       display: flex; align-items: center; gap: 8px;
       text-decoration: none; color: #f1f5f9;
       font-size: 0.95rem; font-weight: 700;
     }
-    .topnav-brand:hover { color: #818cf8; }
+    .topnav-brand:hover { color: #8f72ff; }
     .topnav-brand-icon {
       width: 28px; height: 28px;
-      background: linear-gradient(135deg, #6366f1, #818cf8);
+      background: linear-gradient(135deg, #7c5cfc, #8f72ff);
       border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
       font-size: 14px; color: #fff;
@@ -58,8 +58,8 @@
       font-size: 0.85rem; font-weight: 500;
       transition: all 0.15s;
     }
-    .topnav-link:hover { color: #e2e8f0; background: rgba(99, 102, 241, 0.1); }
-    .topnav-link.active { color: #818cf8; background: rgba(99, 102, 241, 0.12); font-weight: 600; }
+    .topnav-link:hover { color: #e2e8f0; background: rgba(124, 92, 252, 0.1); }
+    .topnav-link.active { color: #8f72ff; background: rgba(124, 92, 252, 0.12); font-weight: 600; }
 
     .container { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 40px 20px; }
 
@@ -76,8 +76,8 @@
       font-family: inherit; font-size: 0.9rem; font-weight: 600;
       transition: all 0.2s;
     }
-    .btn-primary { background: #6366f1; color: #fff; }
-    .btn-primary:hover { background: #818cf8; }
+    .btn-primary { background: #7c5cfc; color: #fff; }
+    .btn-primary:hover { background: #8f72ff; }
     .btn-danger { background: #ef4444; color: #fff; }
     .btn-danger:hover { background: #f87171; }
     .btn-success { background: #22c55e; color: #fff; }
@@ -103,7 +103,7 @@
       border: 1px solid #334155; background: #0f172a; color: #e2e8f0;
       font-family: inherit; font-size: 0.9rem;
     }
-    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #6366f1; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #7c5cfc; }
     .form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
     .form-row .form-group { flex: 1; min-width: 150px; }
 
@@ -134,13 +134,13 @@
     .toast.error { background: #ef4444; }
 
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .count-badge { background: #6366f1; color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+    .count-badge { background: #7c5cfc; color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
 
     #loadingSection {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       min-height: 60vh; gap: 16px;
     }
-    .spinner { width: 40px; height: 40px; border: 4px solid #1e293b; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #1e293b; border-top-color: #7c5cfc; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Modal */
@@ -156,7 +156,7 @@
     }
     .modal-box h2 { margin-bottom: 20px; }
     .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
-    .toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #6366f1; cursor: pointer; }
+    .toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #7c5cfc; cursor: pointer; }
     .toggle-row { cursor: pointer; }
   </style>
 </head>
@@ -265,7 +265,7 @@
         <div class="form-group" style="margin-top:16px;">
           <label style="margin-bottom:12px;">Feature Toggles</label>
           <label class="toggle-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer;">
-            <input type="checkbox" id="globalFeaturePdfExport" style="width:18px;height:18px;accent-color:#6366f1;" />
+            <input type="checkbox" id="globalFeaturePdfExport" style="width:18px;height:18px;accent-color:#7c5cfc;" />
             <span style="font-size:0.9rem;color:#e2e8f0;">PDF Export</span>
           </label>
         </div>

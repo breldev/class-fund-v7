@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="apple-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <meta name="theme-color" content="#6366f1">
+  <meta name="theme-color" content="#0a0a0f">
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to main content</a>
@@ -574,7 +574,7 @@
             <label for="startDate">First Collection Date</label>
             <input type="date" id="startDate" onchange="saveSettings()">
             <label for="weeklyFee" style="margin-top:10px;display:block">Weekly Fee (₱)</label>
-            <input type="number" id="weeklyFee" min="1" value="5" onchange="saveSettings()" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:6px">
+            <input type="number" id="weeklyFee" min="1" value="5" onchange="saveSettings()" style="width:120px;padding:6px;border:1px solid var(--line);border-radius:6px">
           </div>
 
           <div class="card">
@@ -719,7 +719,7 @@
       <div id="loginError" style="color:var(--rose);font-size:12px;display:none;margin-top:8px"></div>
       <button onclick="handleLogin()" id="loginSubmitBtn" class="login-btn" style="margin-top:12px">Sign In</button>
       <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-secondary)">
-        Not an admin? <a href="#" onclick="event.preventDefault();closeLoginModal();showRegisterModal()" style="color:var(--accent);text-decoration:none;font-weight:600">Register as Auditor</a>
+        Not an admin? <a href="#" onclick="event.preventDefault();closeLoginModal();showRegisterModal()" style="color:var(--primary);text-decoration:none;font-weight:600">Register as Auditor</a>
       </p>
     </div>
   </div>
@@ -732,12 +732,12 @@
       <input id="registerName" type="text" placeholder="Full Name">
       <input id="registerEmail" type="email" placeholder="Email">
       <input id="registerPassword" type="password" placeholder="Password (min 6 characters)">
-      <textarea id="registerMessage" placeholder="Message to admin (optional)" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:inherit;font-size:13px;min-height:60px;resize:vertical;margin-top:12px"></textarea>
+      <textarea id="registerMessage" placeholder="Message to admin (optional)" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg-soft);color:var(--text);font-family:inherit;font-size:13px;min-height:60px;resize:vertical;margin-top:12px"></textarea>
       <div id="registerError" style="color:var(--rose);font-size:12px;display:none;margin-top:8px"></div>
       <div id="registerSuccess" style="color:var(--green);font-size:12px;display:none;margin-top:8px"></div>
       <button onclick="handleRegister()" id="registerSubmitBtn" class="login-btn" style="margin-top:12px">Submit Registration</button>
       <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-secondary)">
-        Already have an account? <a href="#" onclick="event.preventDefault();closeRegisterModal();showLoginModal()" style="color:var(--accent);text-decoration:none;font-weight:600">Sign In</a>
+        Already have an account? <a href="#" onclick="event.preventDefault();closeRegisterModal();showLoginModal()" style="color:var(--primary);text-decoration:none;font-weight:600">Sign In</a>
       </p>
     </div>
   </div>
