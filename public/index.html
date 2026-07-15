@@ -34,15 +34,22 @@
         </div>
       </div>
 
+      <div class="nav-group-label">Overview</div>
       <button class="nav-btn admin-only active" onclick="showPage('dashboard')" data-page="dashboard"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>Dashboard</button>
+      <button class="nav-btn admin-only" onclick="showPage('calendar')" data-page="calendar"><span class="nav-icon"><i data-lucide="calendar"></i></span>Schedule</button>
+
+      <div class="nav-group-label">Management</div>
       <button class="nav-btn admin-only" onclick="showPage('students')" data-page="students"><span class="nav-icon"><i data-lucide="users"></i></span>Students</button>
       <button class="nav-btn admin-only" onclick="showPage('payments')" data-page="payments"><span class="nav-icon"><i data-lucide="credit-card"></i></span>Payments</button>
       <button class="nav-btn admin-only" onclick="showPage('expenses')" data-page="expenses"><span class="nav-icon"><i data-lucide="shopping-cart"></i></span>Expenses</button>
-      <button class="nav-btn admin-only" onclick="showPage('reports')" data-page="reports"><span class="nav-icon"><i data-lucide="file-text"></i></span>Reports</button>
-      <button class="nav-btn admin-only" onclick="showPage('calendar')" data-page="calendar"><span class="nav-icon"><i data-lucide="calendar"></i></span>Calendar</button>
+
+      <div class="nav-group-label">Record</div>
       <button class="nav-btn admin-only" onclick="showPage('archive')" data-page="archive"><span class="nav-icon"><i data-lucide="archive"></i></span>Archive</button>
-      <button class="nav-btn admin-only" onclick="showPage('analytics')" data-page="analytics"><span class="nav-icon"><i data-lucide="bar-chart-3"></i></span>Analytics</button>
       <button class="nav-btn admin-only" onclick="showPage('history')" data-page="history"><span class="nav-icon"><i data-lucide="clock"></i></span>History</button>
+      <button class="nav-btn admin-only" onclick="showPage('analytics')" data-page="analytics"><span class="nav-icon"><i data-lucide="bar-chart-3"></i></span>Analytics</button>
+
+      <div class="nav-group-label">Tools</div>
+      <button class="nav-btn admin-only" onclick="showPage('reports')" data-page="reports"><span class="nav-icon"><i data-lucide="file-text"></i></span>Reports</button>
       <button class="nav-btn student-only" onclick="showStudentPage('student')" data-page="student" style="display:none"><span class="nav-icon"><i data-lucide="user"></i></span>My Status</button>
       <button class="nav-btn student-only" onclick="showStudentPage('student-history')" data-page="student-history" style="display:none"><span class="nav-icon"><i data-lucide="clock"></i></span>My History</button>
 
@@ -57,8 +64,8 @@
         </div>
         <button class="ghost-btn" onclick="openCustomizeModal()" style="justify-content:center;gap:6px;font-size:12px"><i data-lucide="sliders-horizontal" style="width:14px;height:14px"></i> Customize</button>
         <button id="installBtn" class="ghost-btn" style="justify-content:center;gap:6px;font-size:12px;display:none"><i data-lucide="download" style="width:14px;height:14px"></i> Install App</button>
-        <button class="login-btn" id="loginBtn" onclick="showLoginModal()" style="justify-content:center;gap:6px;font-size:12px"><i data-lucide="log-in" style="width:14px;height:14px"></i> Login</button>
-        <button class="login-btn" id="logoutBtn" onclick="handleLogout()" style="justify-content:center;gap:6px;font-size:12px;display:none"><i data-lucide="log-out" style="width:14px;height:14px"></i> Logout</button>
+        <button id="loginBtn" style="justify-content:center;gap:6px;font-size:12px" onclick="showLoginModal()"><i data-lucide="log-in" style="width:14px;height:14px"></i> Login</button>
+        <button id="logoutBtn" style="justify-content:center;gap:6px;font-size:12px;display:none" onclick="handleLogout()"><i data-lucide="log-out" style="width:14px;height:14px"></i> Logout</button>
       </div>
     </aside>
 
